@@ -452,12 +452,14 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
     history = conversation_histories.setdefault(chat_id, [])
 
-    user_parts = []
     if photo_bytes:
-        user_parts.append(types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"))
-    user_parts.append(user_message)
-
-    api_contents = list(history) + [{"role": "user", "parts": user_parts}]
+        user_parts = [
+            types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"),
+            types.Part.from_text(text=user_message),
+        ]
+        api_contents = list(history) + [{"role": "user", "parts": user_parts}]
+    else:
+        api_contents = list(history) + [{"role": "user", "parts": [{"text": user_message}]}]
 
     for model_name in AVAILABLE_MODELS:
         try:
