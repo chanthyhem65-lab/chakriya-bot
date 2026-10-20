@@ -369,7 +369,7 @@ AESTHETIC_FORMATTING_RULES = """
    - ត្រូវសរសេរឱ្យមានគម្លាតឃ្លាស្រឡះភ្នែក បែបធម្មជាតិ ស្រួលអាន ដោយបំបែកជាកថាខណ្ឌខ្លីៗ ឬបំបែកចំណុចៗដោយសញ្ញា (•) ឬលេខរៀង ភ្ជាប់សញ្ញា (៖) ស្រួលអានលើទូរស័ព្ទ។
 """
 
-def generate_ai_reply(user, chat_id: int, user_message: str) -> str:
+def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None) -> str:
     user_id = str(user.id)
     is_boss = is_owner_user(user)
 
@@ -442,20 +442,28 @@ def generate_ai_reply(user, chat_id: int, user_message: str) -> str:
    - វិភាគឬសគល់បញ្ហា (Root-Cause Analysis)៖ មុននឹងឆ្លើយ ត្រូវគិតពិចារណាឱ្យដល់ឬសគល់នៃបញ្ហា យល់ពីកាលៈទេសៈ និងតម្រូវការជាក់ស្តែងរបស់អ្នកសួរ។
    - ផ្តល់ដំណោះស្រាយជាក់ស្តែង (Practical & Actionable Tactics) ដែលដោះស្រាយបញ្ហាបានពិតប្រាកដ មានជំហានច្បាស់ៗ (Action Steps) ជួយគិតគូរជំនួសមេ និងក្រុមការងារ។
    - ឆ្លើយចំៗ ខ្លឹម មានទម្ងន់ មិនរាក់កំភែល តែនៅតែរក្សាភាពគួរឱ្យស្រឡាញ់ ផ្អែមល្ហែម និងរួសរាយជានិច្ច!
+7. សមត្ថភាពពិនិត្យ និងវិភាគរូបភាពកម្រិតខ្ពស់ (Multimodal Vision & Image Analysis)៖
+   - នៅពេលមានរូបភាពផ្ញើមក (ដូចជា ក្រដាសពិនិត្យឈាម/ទឹកនោម, ផ្ទាំង Ads Banner, រូបភាពផលិតផល ឬវិក្កយបត្រ)៖
+   - ត្រូវអាន និងវិភាគទិន្នន័យក្នុងរូបភាពឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។
+   - បើជារូបភាពលទ្ធផលតេស្តឈាម/ទឹកនោម (Lab Test Reports)៖ ត្រូវអានកម្រិត Creatinine, BUN, eGFR, Uric acid, Proteinuria... វិភាគស្ថានភាពសុខភាពតម្រងនោម និងណែនាំរបបអាហារត្រូវតម និងអាហារល្អៗយ៉ាងក្បោះក្បាយ។
+   - បើជារូបភាពផ្ទាំងផ្សាយពាណិជ្ជកម្ម (Ads Banner)៖ ត្រូវពិនិត្យគោលការណ៍ Ads របស់ Facebook/TikTok និងផ្ដល់យោបល់កែសម្រួលដើម្បីបង្កើនប្រសិទ្ធភាពលក់។
+   - បង្ហាញលទ្ធផលវិភាគជាចំណុចៗស្រឡះភ្នែក ងាយយល់ និងគ្មានបន្ទាត់រញ៉េរញ៉ៃឡើយ។
 """
 
     history = conversation_histories.setdefault(chat_id, [])
-    history.append({"role": "user", "parts": [{"text": user_message}]})
 
-    if len(history) > MAX_HISTORY * 2:
-        history = history[-MAX_HISTORY * 2:]
-        conversation_histories[chat_id] = history
+    user_parts = []
+    if photo_bytes:
+        user_parts.append(types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"))
+    user_parts.append(user_message)
+
+    api_contents = list(history) + [{"role": "user", "parts": user_parts}]
 
     for model_name in AVAILABLE_MODELS:
         try:
             response = ai_client.models.generate_content(
                 model=model_name,
-                contents=history,
+                contents=api_contents,
                 config=types.GenerateContentConfig(
                     system_instruction=full_system_prompt,
                     thinking_config=types.ThinkingConfig(thinking_budget=1024),
@@ -464,7 +472,11 @@ def generate_ai_reply(user, chat_id: int, user_message: str) -> str:
             )
             if response.text:
                 clean_reply = clean_text_formatting(response.text)
+                history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}" if photo_bytes else user_message
+                history.append({"role": "user", "parts": [{"text": history_label}]})
                 history.append({"role": "model", "parts": [{"text": clean_reply}]})
+                if len(history) > MAX_HISTORY * 2:
+                    conversation_histories[chat_id] = history[-MAX_HISTORY * 2:]
                 return clean_reply
         except Exception as e:
             logger.warning(f"Error with model {model_name}: {e}")
@@ -540,10 +552,27 @@ async def clear_memory_command(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(f"ចរិយា បានលុបការចងចាំចាស់ៗទាំងអស់រួចរាល់ហើយចាស{salutation}! 🌸")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text or not update.effective_user:
+    if not update.message or not update.effective_user:
         return
 
-    text = update.message.text.strip()
+    has_photo = bool(update.message.photo)
+    photo_bytes = None
+    if has_photo:
+        try:
+            photo = update.message.photo[-1]
+            photo_file = await photo.get_file()
+            photo_bytes = bytes(await photo_file.download_as_bytearray())
+        except Exception as pe:
+            logger.warning(f"Error downloading photo: {pe}")
+        text = (update.message.caption or "").strip()
+        if not text:
+            text = "សូមជួយពិនិត្យ និងវិភាគរូបភាពនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+    else:
+        text = (update.message.text or "").strip()
+
+    if not text and not has_photo:
+        return
+
     chat_type = update.effective_chat.type
     bot_username = context.bot.username.lower() if context.bot.username else "chakriya_kidney_bot"
 
@@ -557,11 +586,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         is_mentioned = f"@{bot_username}" in text.lower() or "ចរិយា" in text
 
-        if not (is_reply_to_bot or is_mentioned):
+        if not (is_reply_to_bot or is_mentioned or has_photo):
             return
 
         text = text.replace(f"@{bot_username}", "").replace(f"@{bot_username.upper()}", "").strip()
-        if not text:
+        if not text and not has_photo:
             text = "សួស្តី ចរិយា"
 
     chat_id = update.effective_chat.id
@@ -570,7 +599,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     typing_task = asyncio.create_task(keep_typing(update.message.chat))
 
     try:
-        reply = await asyncio.to_thread(generate_ai_reply, user, chat_id, text)
+        reply = await asyncio.to_thread(generate_ai_reply, user, chat_id, text, photo_bytes)
         formatted_reply = clean_text_formatting(reply)
         try:
             await update.message.reply_text(formatted_reply)
@@ -584,10 +613,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
                 if user.username:
                     user_name += f" (@{user.username})"
+                report_action = "📷 បានផ្ញើរូបភាពមកពិនិត្យ" if has_photo else "💬 បានឆាតសួរថា"
                 report_to_boss = (
                     "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n\n"
                     f"👤 សមាជិក៖ {user_name}\n"
-                    f"💬 បានឆាតសួរថា៖ {text}\n\n"
+                    f"{report_action}៖ {text}\n\n"
                     f"🌸 ចម្លើយរបស់ចរិយា៖\n{formatted_reply}"
                 )
                 try:
@@ -634,7 +664,7 @@ def main():
     app.add_handler(CommandHandler("sales", sales_command))
     app.add_handler(CommandHandler("memory", memory_command))
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Aesthetic Design! Waiting for messages...")
     app.run_polling()
 
