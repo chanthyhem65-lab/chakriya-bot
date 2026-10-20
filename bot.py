@@ -68,23 +68,21 @@ TEAM_KNOWLEDGE = """
 • ជួយផ្ដល់គំនិត Caption, Headline, និងយុទ្ធសាស្ត្ររត់ Ads លើ Facebook និង TikTok ឱ្យចំ Target ចំណាយតិច ចំណេញច្រើន
 • ជួយវិភាគទិន្នន័យការលក់ និងប្រសិទ្ធភាពថ្លៃប៊ូត (Boost Fee) ពី Google Sheets
 
-បញ្ជីរាយនាមសមាជិកក្រុមការងារ៖
-1. អ្នកគ្រូ សូត្រ ម៉ាស់យ៉ា (Sotr Masya) - តំណែង Manager ជំនាញខាងផ្នែកលក់ និងដឹកនាំក្រុមលក់
-2. អ្នកគ្រូ យឹម សីហា (Yim Seyha) - តំណែង Manager ជំនាញខាងផ្នែកលក់ និងដឹកនាំក្រុមលក់
-3. អ្នកគ្រូ ប្រាក់ ស្រីភា (Prak Sreyphea) - ខាងផ្នែកលក់
-4. អ្នកគ្រូ សុមុន្នី ស្រីណុច (Somunny Sreynoch) - ខាងផ្នែកលក់
-5. អ្នកគ្រូ អៀម សុភី (Eam Sophy) - ខាងផ្នែកលក់
-6. អ្នកគ្រូ ងី សុខណា (Ngy Sokna) - ខាងផ្នែកលក់
-7. អ្នកគ្រូ វួច ផាន់នី (Vouch Phanny) - ខាងផ្នែកលក់
-8. អ្នកគ្រូ ម៉ន សីហាក់ (Morn Seyhak) - ខាងផ្នែកលក់
-9. អ្នកគ្រូ ជា វឌ្ឍនា (Chea Vattana) - ខាងផ្នែកលក់
-10. បង ឆាយ វិសាល (Chhay Visal) - ខាងផ្នែកកាត់តវីដេអូ និងថតរូបភាព/វីដេអូ
+បញ្ជីរាយនាមសមាជិកក្រុមការងារទាំង ៩ រូប (Team Members)៖
+1. បង ងី សុខណា (Ngy Sokna) - ក្រុមការងារលក់
+2. បង វួច ផាន់នី (Vouch Phanny) - ក្រុមការងារលក់
+3. បង ប្រាក់ ស្រីភា (Prak Sreyphea) - ក្រុមការងារលក់
+4. បង ម៉ន សីហាក់ (Morn Seyhak) - ក្រុមការងារលក់
+5. បង សូត្រ ម៉ាស់យ៉ា (Sotr Masya) - ក្រុមការងារលក់ / Manager
+6. បង អៀម សុភី (Eam Sophy) - ក្រុមការងារលក់
+7. បង យឹម សីហា (Yim Seyha) - ក្រុមការងារលក់ / Manager
+8. បង សុមុន្នី ស្រីណុច (Somunny Sreynoch) - ក្រុមការងារលក់
+9. បង ជា វឌ្ឍនា (Chea Vattana) - ក្រុមការងារលក់
 
-ការឆាតផ្ទាល់ជាមួយក្រុមការងារ (Team Direct Chat)៖
+ការឆាតផ្ទាល់ជាមួយក្រុមការងារ និងគោលការណ៍រាយការណ៍ជូនមេ (Team Direct Chat & Reporting)៖
 • សមាជិកក្រុមការងារទាំងអស់អាចចុចចូលមកឆាតផ្ទាល់ (1-on-1 Direct Message) ជាមួយ ចរិយា តាម Telegram Bot នេះបានគ្រប់ពេលវេលា!
-• ប្រសិនបើមេ ឬនរណាម្នាក់សួរថា តើសមាជិកក្រុមការងារអាចឆាតផ្ទាល់ជាមួយ ចរិយា បានទេ? ត្រូវឆ្លើយភ្លាមថា៖
-  "ចាសមេ! សមាជិកក្រុមការងារទាំងអស់អាចចូលមកឆាតផ្ទាល់ (Direct Chat) ជាមួយ ចរិយា បានគ្រប់ពេលចាស! ចរិយាត្រៀមខ្លួនជួយសម្រួលការងារលក់ ផ្ដល់គំនិត រៀបចំសារឆ្លើយតបអតិថិជន និងកិច្ចការគ្រប់យ៉ាងជូនបងៗទាំងអស់គ្នា!"
-• ពេលសមាជិកឆាតមក៖ ស្វាគមន៍ដោយកក់ក្តៅ ហៅថា "បង" (ឬ "អ្នកគ្រូ..." / "បង វិសាល") និងជួយជ្រោមជ្រែងការងារឱ្យអស់ពីចិត្ត!
+• ពេលសមាជិកឆាតមក៖ ស្វាគមន៍ដោយកក់ក្តៅ ហៅថា "បង..." និងជួយជ្រោមជ្រែងការងារលក់ ផ្ដល់គំនិត រៀបចំសារឆ្លើយតបអតិថិជន និងការថែទាំតម្រងនោមឱ្យអស់ពីចិត្ត! ហាមហៅអ្នកផ្សេងថា "មេ" ជាដាច់ខាត (ពាក្យ "មេ" សម្រាប់តែបង ហែម ចន្ធី តែម្នាក់គត់)។
+• ប្រព័ន្ធនឹងធ្វើការរាយការណ៍ដោយស្វ័យប្រវត្តិនូវរាល់សំណួរ និងចម្លើយរបស់សមាជិកក្រុម ទៅកាន់ Telegram ផ្ទាល់របស់ "មេ" (បង ហែម ចន្ធី) ភ្លាមៗ ដើម្បីឱ្យមេក្តាប់ជាប់នូវតម្រូវការ និងសកម្មភាពរបស់ក្រុមការងារជានិច្ច!
 """
 
 KIDNEY_HEALTH_KNOWLEDGE = """
@@ -577,6 +575,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(formatted_reply)
         except Exception:
             await context.bot.send_message(chat_id=chat_id, text=formatted_reply)
+
+        # Automatic reporting to Boss if the message is from a team member / other user
+        if not is_owner_user(user):
+            owner_id = bot_config.get("owner_id", "814495505")
+            if owner_id and str(user.id) != str(owner_id):
+                user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
+                if user.username:
+                    user_name += f" (@{user.username})"
+                report_to_boss = (
+                    "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 សមាជិក៖ {user_name}\n"
+                    f"💬 បានឆាតសួរថា៖ {text}\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🌸 ចម្លើយរបស់ចរិយា៖\n{formatted_reply}"
+                )
+                try:
+                    await context.bot.send_message(chat_id=int(owner_id), text=clean_text_formatting(report_to_boss))
+                except Exception as notify_err:
+                    logger.warning(f"Could not forward team activity to boss: {notify_err}")
     except Exception as e:
         logger.error(f"Error handling message: {e}")
     finally:
