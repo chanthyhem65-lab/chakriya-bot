@@ -319,10 +319,18 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
     """Generates natural sweet Khmer neural speech using Microsoft Sreymom voice."""
     try:
         clean_speech = re.sub(r'https?://\S+', '', text)
-        clean_speech = re.sub(r'[^\w\s\u1780-\u17FF.,!?៖៕\-\(\)]', '', clean_speech)
+        # Strip emojis while preserving Khmer, English, digits, currency and punctuation
+        clean_speech = re.sub(r'[^\w\s\u1780-\u17FF$%,.:;!?៖៕\-\(\)/+]', '', clean_speech)
         clean_speech = re.sub(r'\s+', ' ', clean_speech).strip()
-        if len(clean_speech) > 500:
-            clean_speech = clean_speech[:500] + "..."
+        
+        # Allow complete speech up to 1500 characters, never cutting mid-sentence
+        if len(clean_speech) > 1500:
+            cut_point = clean_speech[:1500].rfind("។")
+            if cut_point == -1:
+                cut_point = clean_speech[:1500].rfind("\n")
+            if cut_point > 400:
+                clean_speech = clean_speech[:cut_point] + "។ ព័ត៌មានលម្អិតបន្ថែម មេអាចមើលក្នុងសារអក្សរខាងលើបានណា៎មេ!"
+
         if not clean_speech:
             return None
         communicate = edge_tts.Communicate(clean_speech, "km-KH-SreymomNeural")
@@ -522,6 +530,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
    - នៅពេលមានសារសម្លេង (Voice Note) ឬឯកសារសម្លេង (Audio) ផ្ញើមក៖
    - ត្រូវស្តាប់ និងចាប់យកអត្ថន័យ និងបំណងរបស់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ១០០%។
    - ឆ្លើយតបទៅកាន់សំណួរ ឬការបញ្ជាការងាររបស់អ្នកនិយាយភ្លាមៗ ចំគោលដៅ ខ្លី ខ្លឹម ច្បាស់លាស់ និងរក្សាភាពផ្អែមល្ហែម គួរឱ្យស្រឡាញ់ជានិច្ច!
+   - សម្រាប់ចម្លើយ Voice ៖ ត្រូវឆ្លើយឱ្យចប់ចុងចប់ដើម ពេញលេញនូវខ្លឹមសារ និងអត្ថន័យ មិនកាត់ផ្ដាច់កណ្ដាលទីឡើយ។
 """
 
     history = conversation_histories.setdefault(chat_id, [])
