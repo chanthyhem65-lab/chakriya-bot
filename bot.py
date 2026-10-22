@@ -44,7 +44,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+AVAILABLE_MODELS = ["gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"]
 
 BASE_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / "bot_config.json"
