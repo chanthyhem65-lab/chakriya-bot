@@ -21,6 +21,7 @@ from telegram.ext import (
 )
 from google import genai
 from google.genai import types
+import edge_tts
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -278,6 +279,28 @@ def clean_text_formatting(text: str) -> str:
     cleaned = re.sub(r' +', ' ', cleaned)
     return cleaned.strip()
 
+async def generate_voice_reply(text: str) -> io.BytesIO | None:
+    """Generates natural sweet Khmer neural speech using Microsoft Sreymom voice."""
+    try:
+        clean_speech = re.sub(r'https?://\S+', '', text)
+        clean_speech = re.sub(r'[^\w\s\u1780-\u17FF.,!?៖៕\-\(\)]', '', clean_speech)
+        clean_speech = re.sub(r'\s+', ' ', clean_speech).strip()
+        if len(clean_speech) > 500:
+            clean_speech = clean_speech[:500] + "..."
+        if not clean_speech:
+            return None
+        communicate = edge_tts.Communicate(clean_speech, "km-KH-SreymomNeural")
+        buf = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buf.write(chunk["data"])
+        buf.seek(0)
+        buf.name = "chakriya_voice.mp3"
+        return buf
+    except Exception as e:
+        logger.warning(f"Error in TTS: {e}")
+        return None
+
 def load_all_memories() -> dict:
     if MEMORY_FILE.exists():
         try:
@@ -369,7 +392,7 @@ AESTHETIC_FORMATTING_RULES = """
    - ត្រូវសរសេរឱ្យមានគម្លាតឃ្លាស្រឡះភ្នែក បែបធម្មជាតិ ស្រួលអាន ដោយបំបែកជាកថាខណ្ឌខ្លីៗ ឬបំបែកចំណុចៗដោយសញ្ញា (•) ឬលេខរៀង ភ្ជាប់សញ្ញា (៖) ស្រួលអានលើទូរស័ព្ទ។
 """
 
-def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None) -> str:
+def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4") -> str:
     user_id = str(user.id)
     is_boss = is_owner_user(user)
 
@@ -448,6 +471,10 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
    - បើជារូបភាពលទ្ធផលតេស្តឈាម/ទឹកនោម (Lab Test Reports)៖ ត្រូវអានកម្រិត Creatinine, BUN, eGFR, Uric acid, Proteinuria... វិភាគស្ថានភាពសុខភាពតម្រងនោម និងណែនាំរបបអាហារត្រូវតម និងអាហារល្អៗយ៉ាងក្បោះក្បាយ។
    - បើជារូបភាពផ្ទាំងផ្សាយពាណិជ្ជកម្ម (Ads Banner)៖ ត្រូវពិនិត្យគោលការណ៍ Ads របស់ Facebook/TikTok និងផ្ដល់យោបល់កែសម្រួលដើម្បីបង្កើនប្រសិទ្ធភាពលក់។
    - បង្ហាញលទ្ធផលវិភាគជាចំណុចៗស្រឡះភ្នែក ងាយយល់ និងគ្មានបន្ទាត់រញ៉េរញ៉ៃឡើយ។
+8. សមត្ថភាពស្តាប់ និងយល់ន័យសារសម្លេង (Voice Note & Audio Understanding)៖
+   - នៅពេលមានសារសម្លេង (Voice Note) ឬឯកសារសម្លេង (Audio) ផ្ញើមក៖
+   - ត្រូវស្តាប់ និងចាប់យកអត្ថន័យ និងបំណងរបស់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ១០០%។
+   - ឆ្លើយតបទៅកាន់សំណួរ ឬការបញ្ជាការងាររបស់អ្នកនិយាយភ្លាមៗ ចំគោលដៅ ខ្លី ខ្លឹម ច្បាស់លាស់ និងរក្សាភាពផ្អែមល្ហែម គួរឱ្យស្រឡាញ់ជានិច្ច!
 """
 
     history = conversation_histories.setdefault(chat_id, [])
@@ -455,6 +482,18 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     if photo_bytes:
         user_parts = [
             types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"),
+            types.Part.from_text(text=user_message),
+        ]
+        api_contents = list(history) + [{"role": "user", "parts": user_parts}]
+    elif audio_bytes:
+        user_parts = [
+            types.Part.from_bytes(data=audio_bytes, mime_type=audio_mime),
+            types.Part.from_text(text=user_message),
+        ]
+        api_contents = list(history) + [{"role": "user", "parts": user_parts}]
+    elif video_bytes:
+        user_parts = [
+            types.Part.from_bytes(data=video_bytes, mime_type=video_mime),
             types.Part.from_text(text=user_message),
         ]
         api_contents = list(history) + [{"role": "user", "parts": user_parts}]
@@ -474,7 +513,14 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
             )
             if response.text:
                 clean_reply = clean_text_formatting(response.text)
-                history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}" if photo_bytes else user_message
+                if photo_bytes:
+                    history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}"
+                elif audio_bytes:
+                    history_label = f"[សារសម្លេង Voice Note] {user_message}"
+                elif video_bytes:
+                    history_label = f"[វីដេអូដែលបានផ្ញើមក] {user_message}"
+                else:
+                    history_label = user_message
                 history.append({"role": "user", "parts": [{"text": history_label}]})
                 history.append({"role": "model", "parts": [{"text": clean_reply}]})
                 if len(history) > MAX_HISTORY * 2:
@@ -558,7 +604,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     has_photo = bool(update.message.photo)
+    has_voice = bool(update.message.voice)
+    has_audio = bool(update.message.audio)
+    has_video = bool(update.message.video or update.message.video_note)
+
     photo_bytes = None
+    audio_bytes = None
+    audio_mime = "audio/ogg"
+    video_bytes = None
+    video_mime = "video/mp4"
+
     if has_photo:
         try:
             photo = update.message.photo[-1]
@@ -569,14 +624,56 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (update.message.caption or "").strip()
         if not text:
             text = "សូមជួយពិនិត្យ និងវិភាគរូបភាពនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+    elif has_voice:
+        try:
+            voice = update.message.voice
+            voice_file = await voice.get_file()
+            audio_bytes = bytes(await voice_file.download_as_bytearray())
+            audio_mime = (voice.mime_type or "audio/ogg").split(";")[0].strip()
+        except Exception as ve:
+            logger.warning(f"Error downloading voice: {ve}")
+        caption = (update.message.caption or "").strip()
+        if caption:
+            text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+        else:
+            text = "សូមស្តាប់សារសម្លេង (Voice Note) នេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបទៅកាន់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+    elif has_audio:
+        try:
+            audio = update.message.audio
+            audio_file = await audio.get_file()
+            audio_bytes = bytes(await audio_file.download_as_bytearray())
+            audio_mime = (audio.mime_type or "audio/mp3").split(";")[0].strip()
+        except Exception as ae:
+            logger.warning(f"Error downloading audio: {ae}")
+        caption = (update.message.caption or "").strip()
+        if caption:
+            text = f"ឯកសារសម្លេង (Audio File) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+        else:
+            text = "សូមស្តាប់ឯកសារសម្លេង (Audio File) នេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបទៅកាន់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+    elif has_video:
+        try:
+            vid = update.message.video or update.message.video_note
+            if vid.file_size and vid.file_size <= 20 * 1024 * 1024:
+                vid_file = await vid.get_file()
+                video_bytes = bytes(await vid_file.download_as_bytearray())
+                video_mime = (vid.mime_type or "video/mp4").split(";")[0].strip()
+            else:
+                logger.warning("Video exceeds 20MB limit")
+        except Exception as v_err:
+            logger.warning(f"Error downloading video: {v_err}")
+        caption = (update.message.caption or "").strip()
+        if caption:
+            text = f"វីដេអូភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+        else:
+            text = "សូមជួយពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
     else:
         text = (update.message.text or "").strip()
 
-    if not text and not has_photo:
+    if not text and not has_photo and not has_voice and not has_audio and not has_video:
         return
 
     chat_type = update.effective_chat.type
-    bot_username = context.bot.username.lower() if context.bot.username else "chakriya_kidney_bot"
+    bot_username = context.bot.username.lower() if context.bot.username else "chakriya_assistant_bot"
 
     if chat_type in ["group", "supergroup"]:
         is_reply_to_bot = (
@@ -588,11 +685,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         is_mentioned = f"@{bot_username}" in text.lower() or "ចរិយា" in text
 
-        if not (is_reply_to_bot or is_mentioned or has_photo):
+        if not (is_reply_to_bot or is_mentioned or has_photo or has_voice or has_audio or has_video):
             return
 
         text = text.replace(f"@{bot_username}", "").replace(f"@{bot_username.upper()}", "").strip()
-        if not text and not has_photo:
+        if not text and not has_photo and not has_voice and not has_audio and not has_video:
             text = "សួស្តី ចរិយា"
 
     chat_id = update.effective_chat.id
@@ -601,12 +698,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     typing_task = asyncio.create_task(keep_typing(update.message.chat))
 
     try:
-        reply = await asyncio.to_thread(generate_ai_reply, user, chat_id, text, photo_bytes)
+        reply = await asyncio.to_thread(
+            generate_ai_reply,
+            user,
+            chat_id,
+            text,
+            photo_bytes,
+            audio_bytes,
+            audio_mime,
+            video_bytes,
+            video_mime
+        )
         formatted_reply = clean_text_formatting(reply)
         try:
             await update.message.reply_text(formatted_reply)
         except Exception:
             await context.bot.send_message(chat_id=chat_id, text=formatted_reply)
+
+        # Voice Reply trigger: if incoming was voice/audio, OR user explicitly asked for voice
+        voice_triggers = ["voice", "សម្លេង", "សំឡេង", "និយាយ", "ឆ្លើយជាសម្លេង", "ឆ្លើយជាសំឡេង", "ចរិយានិយាយ"]
+        wants_voice = has_voice or any(vt in text.lower() for vt in voice_triggers)
+
+        if wants_voice:
+            try:
+                voice_buf = await generate_voice_reply(formatted_reply)
+                if voice_buf:
+                    try:
+                        await update.message.reply_voice(voice=voice_buf)
+                    except Exception as r_ve:
+                        logger.info(f"reply_voice fallback to reply_audio: {r_ve}")
+                        voice_buf.seek(0)
+                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសម្លេងពី ចរិយា", performer="ចរិយា AI")
+            except Exception as voice_err:
+                logger.warning(f"Could not send voice reply to {chat_id}: {voice_err}")
 
         # Automatic reporting to Boss if the message is from a team member / other user
         if not is_owner_user(user):
@@ -615,11 +739,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
                 if user.username:
                     user_name += f" (@{user.username})"
-                report_action = "📷 បានផ្ញើរូបភាពមកពិនិត្យ" if has_photo else "💬 បានឆាតសួរថា"
+                if has_photo:
+                    report_action = "📷 បានផ្ញើរូបភាពមកពិនិត្យ"
+                elif has_voice:
+                    report_action = "🎙️ បានផ្ញើសារសម្លេង (Voice Note) មក"
+                elif has_audio:
+                    report_action = "🎵 បានផ្ញើឯកសារសម្លេង (Audio) មក"
+                elif has_video:
+                    report_action = "🎬 បានផ្ញើវីដេអូមកពិនិត្យ"
+                else:
+                    report_action = f"💬 បានឆាតសួរថា៖ {text}"
+
                 report_to_boss = (
                     "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n\n"
                     f"👤 សមាជិក៖ {user_name}\n"
-                    f"{report_action}៖ {text}\n\n"
+                    f"{report_action}\n\n"
                     f"🌸 ចម្លើយរបស់ចរិយា៖\n{formatted_reply}"
                 )
                 try:
@@ -666,7 +800,7 @@ def main():
     app.add_handler(CommandHandler("sales", sales_command))
     app.add_handler(CommandHandler("memory", memory_command))
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
-    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Aesthetic Design! Waiting for messages...")
     app.run_polling()
 
