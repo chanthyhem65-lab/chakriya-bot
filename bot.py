@@ -165,6 +165,15 @@ ADS_POLICY_AND_VIDEO_KNOWLEDGE = """
 
 _sheet_cache = {"time": 0, "content": ""}
 
+def parse_sheet_num(val: str) -> float:
+    if not val:
+        return 0.0
+    val = val.replace("$", "").replace(",", "").strip()
+    try:
+        return float(val)
+    except ValueError:
+        return 0.0
+
 def fetch_live_sales_data() -> str:
     now = time.time()
     if now - _sheet_cache["time"] < 60 and _sheet_cache["content"]:
@@ -180,41 +189,68 @@ def fetch_live_sales_data() -> str:
             return "មិនទាន់មានទិន្នន័យក្នុង Sheet នៅឡើយទេ។"
 
         total_row = valid_rows[1]
-
         orders = [
             r for r in valid_rows[2:]
-            if len(r) > 2 and (r[1].strip() or r[2].strip()) and r[0].strip().isdigit()
+            if len(r) > 2 and r[0].strip().isdigit()
         ]
 
-        seller_counts = {}
+        sellers = {}
+        locations = {}
+        delivery_status = {}
+        cod_status = {}
+
         for o in orders:
-            seller = o[2].strip() if len(o) > 2 else "មិនស្គាល់"
-            qty_str = o[6].strip() if len(o) > 6 else "1"
+            s_name = o[2].strip() if len(o) > 2 and o[2].strip() else "មិនស្គាល់"
+            loc = o[5].strip() if len(o) > 5 and o[5].strip() else "មិនស្គាល់"
             try:
-                qty = int(qty_str)
+                qty = int(o[6].strip())
             except ValueError:
                 qty = 1
-            seller_counts[seller] = seller_counts.get(seller, 0) + qty
+            sale_price = parse_sheet_num(o[8]) if len(o) > 8 else 0.0
+            boost_fee = parse_sheet_num(o[11]) if len(o) > 11 else 0.0
+            profit = parse_sheet_num(o[13]) if len(o) > 13 else 0.0
+            d_stat = o[16].strip() if len(o) > 16 and o[16].strip() else "មិនស្គាល់"
+            c_stat = o[17].strip() if len(o) > 17 and o[17].strip() else "មិនស្គាល់"
 
-        seller_ranking = sorted(seller_counts.items(), key=lambda x: x[1], reverse=True)
+            if s_name not in sellers:
+                sellers[s_name] = {"qty": 0, "orders": 0, "revenue": 0.0, "boost": 0.0, "profit": 0.0}
+            sellers[s_name]["qty"] += qty
+            sellers[s_name]["orders"] += 1
+            sellers[s_name]["revenue"] += sale_price
+            sellers[s_name]["boost"] += boost_fee
+            sellers[s_name]["profit"] += profit
+
+            locations[loc] = locations.get(loc, 0) + qty
+            delivery_status[d_stat] = delivery_status.get(d_stat, 0) + 1
+            cod_status[c_stat] = cod_status.get(c_stat, 0) + 1
 
         lines = [
-            "ទិន្នន័យជាក់ស្តែងពី Google Sheets៖",
+            "ទិន្នន័យជាក់ស្តែងពី Google Sheets (Live Data Real-time)៖",
             f"• ចំនួនការកម្ម៉ង់សរុប ៖ {len(orders)} កម្ម៉ង់",
         ]
         
-        if len(total_row) > 12:
+        if len(total_row) > 13:
             lines.append(f"• ចំនួនលក់ចេញសរុប ៖ {total_row[6]} កំប៉ុង/ប្រអប់")
             lines.append(f"• ចំណូលសរុប ៖ {total_row[8]}")
             lines.append(f"• ថ្លៃដើមសរុប ៖ {total_row[9]}")
             lines.append(f"• ថ្លៃដឹកសរុប ៖ {total_row[10]}")
-            lines.append(f"• ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម ៖ {total_row[11]}")
-            lines.append(f"• ប្រាក់ចំណេញសុទ្ធ ៖ {total_row[12]}")
+            lines.append(f"• ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Ads Boost Fee) ៖ {total_row[11]}")
+            lines.append(f"• ប្រាក់ចំណេញសុទ្ធ ៖ {total_row[13]}")
 
-        lines.append("\nចំណាត់ថ្នាក់ការលក់តាមសមាជិក៖")
-        for idx, (s_name, s_qty) in enumerate(seller_ranking, 1):
-            if s_name:
-                lines.append(f"  {idx}. {s_name} ៖ {s_qty} កំប៉ុង/ប្រអប់")
+        lines.append("\nលទ្ធផលលម្អិតតាមសមាជិកក្រុមការងារ (Team Ranking & Performance)៖")
+        for idx, (s, stats) in enumerate(sorted(sellers.items(), key=lambda x: x[1]["qty"], reverse=True), 1):
+            lines.append(f"  {idx}. {s} ៖ {stats['qty']} កំប៉ុង ({stats['orders']} កម្ម៉ង់) | ចំណូល: ${stats['revenue']:,.2f} | ថ្លៃប៊ូត: ${stats['boost']:,.2f} | ចំណេញ: ${stats['profit']:,.2f}")
+
+        lines.append("\nស្ថានភាពដឹកជញ្ជូន (Logistics & Delivery)៖")
+        for ds, cnt in delivery_status.items():
+            lines.append(f"• {ds} ៖ {cnt} កម្ម៉ង់")
+
+        lines.append("\nស្ថានភាពប្រមូលលុយ COD និងទូរទាត់ (Cash Flow & COD Status)៖")
+        for cs, cnt in cod_status.items():
+            lines.append(f"• {cs} ៖ {cnt} កម្ម៉ង់")
+
+        thai_count = locations.get("ថៃ", 0)
+        lines.append(f"\nទីផ្សារធំបំផុត ៖ ទីផ្សារប្រទេសថៃ (Thailand) លក់បាន {thai_count} កំប៉ុង ({thai_count/200*100:.1f}% នៃការលក់សរុប)")
 
         result_text = "\n".join(lines)
         _sheet_cache["time"] = now
@@ -400,7 +436,12 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     check_and_extract_memory(user_id, user_message)
 
     # 2. Check if query is related to sales, reports, or team performance
-    sales_keywords = ["លក់", "របាយការណ៍", "ចំណេញ", "ថ្លៃដើម", "សរុប", "អតិថិជន", "orders", "sale", "report", "stats", "ទិន្នន័យ", "ប៊ូត", "ដឹក", "អ្នកគ្រូ", "ចរិយា ថ្ងៃនេះ"]
+    sales_keywords = [
+        "លក់", "របាយការណ៍", "ចំណេញ", "ថ្លៃដើម", "សរុប", "អតិថិជន", "orders", "sale", "report", "stats", 
+        "ទិន្នន័យ", "ប៊ូត", "ដឹក", "អ្នកគ្រូ", "ចរិយា ថ្ងៃនេះ", "sheet", "google sheet", "google sheets",
+        "ក្រុម", "សមាជិក", "សុខណា", "ផាន់នី", "ស្រីភា", "សីហាក់", "ម៉ាស់យ៉ា", "សុភី", "សីហា", "ស្រីណុច", "វឌ្ឍនា",
+        "cod", "vet", "ថៃ", "ដឹកជញ្ជូន", "លុយ", "កំប៉ុង"
+    ]
     is_asking_sales = any(k in user_message.lower() for k in sales_keywords)
 
     sales_data_context = ""
