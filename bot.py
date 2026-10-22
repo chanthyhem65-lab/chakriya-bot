@@ -44,7 +44,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"]
+AVAILABLE_MODELS = ["gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-3.1-flash-lite"]
 
 BASE_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / "bot_config.json"
@@ -442,11 +442,17 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         "ក្រុម", "សមាជិក", "សុខណា", "ផាន់នី", "ស្រីភា", "សីហាក់", "ម៉ាស់យ៉ា", "សុភី", "សីហា", "ស្រីណុច", "វឌ្ឍនា",
         "cod", "vet", "ថៃ", "ដឹកជញ្ជូន", "លុយ", "កំប៉ុង"
     ]
-    is_asking_sales = any(k in user_message.lower() for k in sales_keywords)
+    # Always load live Google Sheets data so Chakriya always has it in memory for voice, text, or any query!
+    sales_data_context = fetch_live_sales_data()
 
-    sales_data_context = ""
-    if is_asking_sales:
-        sales_data_context = fetch_live_sales_data()
+    sheet_connection_knowledge = f"""
+### ការតភ្ជាប់ផ្ទាល់ជាមួយ Google Sheets (Live Google Sheets Sync Status)៖
+• ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់មេ (https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8) រួចជាស្រេច ១០០%!
+• ដាច់ខាត ហាមឆ្លើយថា "មិនទាន់អាចចូលមើល Google Sheets បាន" ឬ "សុំឱ្យមេ Export CSV/Excel ឬ Copy ទិន្នន័យមក" ឡើយ! ព្រោះចរិយាមានទិន្នន័យជាក់ស្តែងស្រាប់ក្នុងដៃនៅខាងក្រោមនេះជានិច្ច!
+• នៅពេលមេ ឬនរណាម្នាក់សួរអំពីការលក់ ក្រុមការងារ ថ្លៃប៊ូត ថ្លៃដឹក ឬ COD (មិនថាតាមសារអក្សរ ឬសារសម្លេង Voice Note ឡើយ) ត្រូវយកទិន្នន័យជាក់ស្តែងខាងក្រោមនេះមកគណនា និងឆ្លើយតបជូនភ្លាមៗ!
+
+{sales_data_context}
+"""
 
     # 3. Build addressing and privacy rules
     if is_boss:
@@ -486,7 +492,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
 {memories_text}
 
-{sales_data_context}
+{sheet_connection_knowledge}
 
 {AESTHETIC_FORMATTING_RULES}
 
@@ -677,7 +683,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if caption:
             text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
         else:
-            text = "សូមស្តាប់សារសម្លេង (Voice Note) នេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបទៅកាន់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+            text = "សារសម្លេង (Voice Note) ពីអ្នកប្រើប្រាស់។ សូមស្តាប់សំណួរ ឬការបញ្ជានេះ ហើយឆ្លើយតបយ៉ាងលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត (រួមទាំងការរាយការណ៍ទិន្នន័យពី Google Sheets ជាក់ស្តែងខាងលើ ប្រសិនបើអ្នកនិយាយសួរពីការលក់ ក្រុមការងារ ឬតួលេខនានា)។"
     elif has_audio:
         try:
             audio = update.message.audio
