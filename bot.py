@@ -21,7 +21,10 @@ from telegram.ext import (
 )
 from google import genai
 from google.genai import types
+from datetime import datetime, timezone, timedelta
 import edge_tts
+
+ICT = timezone(timedelta(hours=7))
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -261,7 +264,11 @@ def fetch_live_sales_data() -> str:
             lines.append(f"• {cs} ៖ {cnt} កម្ម៉ង់")
 
         thai_count = locations.get("ថៃ", 0)
-        lines.append(f"\nទីផ្សារធំបំផុត ៖ ទីផ្សារប្រទេសថៃ (Thailand) លក់បាន {thai_count} កំប៉ុង ({thai_count/200*100:.1f}% នៃការលក់សរុប)")
+        total_cans = parse_sheet_num(total_row[6]) if len(total_row) > 6 else (sum(s['qty'] for s in sellers.values()) or 1.0)
+        if total_cans <= 0:
+            total_cans = 1.0
+        pct = (thai_count / total_cans) * 100
+        lines.append(f"\nទីផ្សារធំបំផុត ៖ ទីផ្សារប្រទេសថៃ (Thailand) លក់បាន {thai_count} កំប៉ុង ({pct:.1f}% នៃការលក់សរុប)")
 
         lines.append("\n=== ទិន្នន័យលម្អិតតាមកាលបរិច្ឆេទថ្ងៃនីមួយៗ (Daily Breakdown by Date) ===")
         for d, ds in dates_data.items():
@@ -471,14 +478,27 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     # Always load live Google Sheets data so Chakriya always has it in memory for voice, text, or any query!
     sales_data_context = fetch_live_sales_data()
 
+    now_ict = datetime.now(ICT)
+    today_str = f"{now_ict.day}-{now_ict.strftime('%b')}"
+    yesterday_str = f"{(now_ict - timedelta(days=1)).day}-{(now_ict - timedelta(days=1)).strftime('%b')}"
+
     sheet_connection_knowledge = f"""
 ### ការតភ្ជាប់ផ្ទាល់ជាមួយ Google Sheets (Live Google Sheets Sync Status)៖
 • ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់មេ (https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8) រួចជាស្រេច ១០០%!
 • ដាច់ខាត ហាមឆ្លើយថា "មិនទាន់អាចចូលមើល Google Sheets បាន" ឬ "សុំឱ្យមេ Export CSV/Excel ឬ Copy ទិន្នន័យមក" ឡើយ! ព្រោះចរិយាមានទិន្នន័យជាក់ស្តែងស្រាប់ក្នុងដៃនៅខាងក្រោមនេះជានិច្ច!
-• នៅពេលមេ ឬនរណាម្នាក់សួរអំពីការលក់ ក្រុមការងារ ថ្លៃប៊ូត ថ្លៃដឹក ឬ COD (មិនថាតាមសារអក្សរ ឬសារសម្លេង Voice Note ឡើយ) ត្រូវយកទិន្នន័យជាក់ស្តែងខាងក្រោមនេះមកឆ្លើយតបជូនភ្លាមៗ!
+• នៅពេលមេ ឬនរណាម្នាក់សួរអំពីការលក់ ក្រុមការងារ ថ្លៃប៊ូត ថ្លៃដឹក ឬ COD ត្រូវយកទិន្នន័យជាក់ស្តែងខាងក្រោមនេះមកឆ្លើយតបជូនភ្លាមៗ!
+
+### កាលបរិច្ឆេទជាក់ស្តែងថ្ងៃនេះ និងម្សិលមិញ (Real-time Dynamic Dates)៖
+• ថ្ងៃនេះ (Today) ៖ គឺថ្ងៃទី {today_str}
+• ម្សិលមិញ (Yesterday) ៖ គឺថ្ងៃទី {yesterday_str}
+• ប្រសិនបើមេសួរ "ថ្ងៃនេះ" (Today)៖
+  - ត្រូវពិនិត្យមើលក្នុងផ្នែក "=== ទិន្នន័យលម្អិតតាមកាលបរិច្ឆេទថ្ងៃនីមួយៗ (Daily Breakdown by Date) ===" ខាងក្រោមថាមានថ្ងៃ {today_str} ឬនៅ?
+  - បើមានទិន្នន័យថ្ងៃ {today_str} ៖ ត្រូវឆ្លើយតបតាមតួលេខនៃថ្ងៃនោះ។
+  - បើមិនទាន់មានការបញ្ចូលទិន្នន័យថ្ងៃ {today_str} ក្នុង Sheet ទេ ៖ ត្រូវឆ្លើយថា "ចាសមេ! សម្រាប់ថ្ងៃនេះ ({today_str}) មិនទាន់មានទិន្នន័យការកម្ម៉ង់ចូលក្នុង Sheet នៅឡើយទេណា៎មេ! 🥰" (ដាច់ខាត ហាមយកទិន្នន័យថ្ងៃចាស់មកឆ្លើយជំនួសឱ្យថ្ងៃនេះឡើយ!)។
+• ប្រសិនបើមេសួរ "ម្សិលមិញ" (Yesterday)៖
+  - ត្រូវយកតែទិន្នន័យនៃថ្ងៃ {yesterday_str} មកឆ្លើយ។
 
 ### បទបញ្ជាដាច់ខាតរបស់មេ៖ "ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន!" (Strict Targeted Rules)៖
-• សំខាន់បំផុត៖ ថ្ងៃបច្ចុប្បន្ន (ថ្ងៃនេះ) គឺថ្ងៃ ២២-Oct (22-Oct) ហើយម្សិលមិញគឺថ្ងៃ ២១-Oct (21-Oct)។
 • គោលការណ៍ឆ្លើយតបគឺ "សួរអ្វី ឆ្លើយចំរឿងហ្នឹង" ត្រឹមត្រូវតាម Google Sheets ១០០% ហាមរៀបរាប់លើសពីអ្វីដែលសួរ៖
   ១. បើមេសួរតែចំនួនកំប៉ុង (ឧ. "ថ្ងៃនេះលក់បានប៉ុន្មានកំប៉ុង?", "ថ្ងៃ ២០ លក់បានប៉ុន្មាន?", "លក់បានប៉ុន្មាន?"):
      -> ឆ្លើយតែចំនួនកំប៉ុង និងចំនួនកម្ម៉ង់នៃថ្ងៃនោះភ្លាម! (ឧ. "ចាសមេ! ថ្ងៃនេះលក់បាន 10 កំប៉ុង (4 កម្ម៉ង់) ណា៎មេ! 🥰")
@@ -539,6 +559,15 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 {sheet_connection_knowledge}
 
 {AESTHETIC_FORMATTING_RULES}
+
+### ច្បាប់គ្រឹះកំពូល៖ ស្ដាប់សំណួរឱ្យច្បាស់ និងឆ្លើយចំៗប្រធានបទ ១០០% (Strict Topic Alignment & Zero Hallucination)៖
+• ត្រូវកំណត់ឱ្យច្បាស់ថា សំណួរ ឬសាររបស់មេ/អ្នកប្រើប្រាស់ស្ថិតក្នុងប្រធានបទណា មុននឹងឆ្លើយ៖
+  ១. ប្រសិនបើសួរ ឬនិយាយពីរឿងទូទៅ, ការងារ, វីដេអូ, Ads, ការកែសម្រួល ឬការសួរសុខទុក្ខ (ឧ. "សួស្តី", "ធ្វើអីហ្នឹង", "ជួយពិនិត្យមើល...", "តើមេដឹកនាំល្អជាអ្វី?"):
+     -> ត្រូវឆ្លើយតបចំៗទៅកាន់រឿងនោះភ្លាម! ហាមដាច់ខាត ហាមលើកទិន្នន័យ Google Sheets ឬការលក់មកឆ្លើយឡើយ ព្រោះគេមិនបានសួរពីរឿងលក់!
+  ២. ប្រសិនបើសួរពីរឿងសុខភាព ឬតម្រងនោម:
+     -> ឆ្លើយចំៗតែរឿងវេជ្ជសាស្ត្រតម្រងនោម និងអាហារូបត្ថម្ភប៉ុណ្ណោះ!
+  ៣. លុះត្រាតែមេសួរពីរឿង "លក់, កំប៉ុង, កម្ម៉ង់, ប្រាក់ចំណេញ, ថ្លៃប៊ូត, អ្នកលក់, ឬ Google Sheets" ទើបយកទិន្នន័យ Google Sheets មកឆ្លើយ!
+     -> ពេលសួរពីរឿងលក់៖ ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន! (សួរកំប៉ុង ប្រាប់កំប៉ុង, សួរចំណេញ ប្រាប់ចំណេញ, សួរអ្នកលក់ ប្រាប់អ្នកលក់)។
 
 គោលការណ៍ណែនាំបន្ថែម៖
 1. បទបញ្ជាដាច់ខាតរបស់មេ (Top Priority Instruction)៖ "ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន! យកទិន្នន័យពី Google Sheets ឱ្យបានច្បាស់លាស់ ១០០%!"
@@ -612,8 +641,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                 contents=api_contents,
                 config=types.GenerateContentConfig(
                     system_instruction=full_system_prompt,
-                    thinking_config=types.ThinkingConfig(thinking_budget=1024),
-                    temperature=0.7,
+                    temperature=0.3,
                 ),
             )
             if response.text:
@@ -704,6 +732,15 @@ async def clear_memory_command(update: Update, context: ContextTypes.DEFAULT_TYP
     salutation = "មេ" if is_boss else "បង"
     await update.message.reply_text(f"ចរិយា បានលុបការចងចាំចាស់ៗទាំងអស់រួចរាល់ហើយចាស{salutation}! 🌸")
 
+async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or not update.message:
+        return
+    chat_id = update.effective_chat.id
+    conversation_histories[chat_id] = []
+    is_boss = is_owner_user(update.effective_user)
+    salutation = "មេ" if is_boss else "បង"
+    await update.message.reply_text(f"ចាស{salutation}! ចរិយាបានសម្អាតប្រវត្តិសន្ទនាមុនៗរួចរាល់ហើយ ឥឡូវ{salutation}អាចសួរសំណួរថ្មីបានយ៉ាងស្រឡះចិត្តណា៎! 🌸🥰")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_user:
         return
@@ -739,9 +776,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"Error downloading voice: {ve}")
         caption = (update.message.caption or "").strip()
         if caption:
-            text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+            text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបចំប្រធានបទដែលបាននិយាយ ខ្លី ខ្លឹម ផ្អែមល្ហែមបំផុត។"
         else:
-            text = "សារសម្លេង (Voice Note) ពីអ្នកប្រើប្រាស់។ សូមស្តាប់សំណួរ ឬការបញ្ជានេះ ហើយឆ្លើយតបយ៉ាងលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត (រួមទាំងការរាយការណ៍ទិន្នន័យពី Google Sheets ជាក់ស្តែងខាងលើ ប្រសិនបើអ្នកនិយាយសួរពីការលក់ ក្រុមការងារ ឬតួលេខនានា)។"
+            text = "សារសម្លេង (Voice Note) ពីអ្នកប្រើប្រាស់។ សូមស្តាប់សំណួរ ឬសារនេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបចំៗប្រធានបទដែលអ្នកនិយាយបានសួរ ខ្លី ខ្លឹម ច្បាស់លាស់ និងផ្អែមល្ហែមបំផុត (ប្រសិនបើសួរពីរឿងលក់ ទើបយកទិន្នន័យ Google Sheets មកឆ្លើយ)។"
     elif has_audio:
         try:
             audio = update.message.audio
@@ -905,6 +942,8 @@ def main():
     app.add_handler(CommandHandler("sales", sales_command))
     app.add_handler(CommandHandler("memory", memory_command))
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
+    app.add_handler(CommandHandler("clear", clear_command))
+    app.add_handler(CommandHandler("reset", clear_command))
     app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Aesthetic Design! Waiting for messages...")
     app.run_polling()
