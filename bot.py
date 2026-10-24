@@ -686,6 +686,9 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
      • "ត្រូវចំគោលដៅ និងត្រូវសំណួរ"៖ សួរអ្វី ឆ្លើយចំរឿងហ្នឹងភ្លាម!
      • "ខ្លី ខ្លឹម មានទម្ងន់"៖ បង្រួមចម្លើយមកត្រឹម ២-៣ បន្ទាត់ ឬចំណុចសំខាន់ៗខ្លីៗបំផុត។
      • សម្រាប់ចម្លើយជាសំឡេង (Voice)៖ ត្រូវនិយាយខ្លី ចំគោលដៅ ផ្អែមល្ហែម ស្រទន់ និងបញ្ចប់ទៅដោយកក់ក្តៅ មិនខ្ជះខ្ជាយពេលវេលារបស់មេ ឬអ្នកស្ដាប់ឡើយ!
+10. គោលការណ៍ឆ្លើយជាសំឡេង (Strict Voice Reply Rules)៖
+   - មេបានបញ្ជាដាច់ខាត៖ "សរសេរអក្សរឆ្លើយជាអក្សរ សួរជាសំឡេងឆ្លើយជាសំឡេង! លុះត្រាតែអ្នកសរសេរអក្សរបានបញ្ជាក់ថា 'សូមនិយាយជាសំឡេង' ទើបឆ្លើយជាសំឡេងបាន!"
+   - បើគេផ្ញើជាអក្សរធម្មតា មិនបានសរសេរថា "សូមនិយាយជាសំឡេង" ទេ ហាមដាច់ខាតមិនត្រូវផ្ញើសារសំឡេង Voice ទៅកាន់គេឡើយ!
 """
 
     history = conversation_histories.setdefault(chat_id, [])
@@ -994,9 +997,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             await context.bot.send_message(chat_id=chat_id, text=formatted_reply)
 
-        # Voice Reply trigger: if incoming was voice/audio, OR user explicitly asked for voice
-        voice_triggers = ["voice", "សម្លេង", "សំឡេង", "និយាយ", "ឆ្លើយជាសម្លេង", "ឆ្លើយជាសំឡេង", "ចរិយានិយាយ"]
-        wants_voice = has_voice or any(vt in text.lower() for vt in voice_triggers)
+        # Voice Reply trigger:
+        # បទបញ្ជាដាច់ខាតរបស់មេ៖ សរសេរអក្សរឆ្លើយជាអក្សរ សួរជាសំឡេងឆ្លើយជាសំឡេង!
+        # លុះត្រាតែអ្នកសរសេរអក្សរសរសេរថា "សូមនិយាយជាសំឡេង" ទើបឆ្លើយជាសំឡេង បើមិនដូច្នោះទេ ហាមនិយាយជាសំឡេងឡើយ!
+        incoming_is_voice = bool(has_voice or has_audio)
+        explicit_voice_requests = [
+            "សូមនិយាយជាសំឡេង", "សូមនិយាយជាសំលេង",
+            "និយាយជាសំឡេង", "និយាយជាសំលេង",
+            "ឆ្លើយជាសំឡេង", "ឆ្លើយជាសំលេង",
+            "សូមឆ្លើយជាសំឡេង", "សូមឆ្លើយជាសំលេង",
+            "voice note", "send voice"
+        ]
+        text_lower = text.lower()
+        user_explicitly_asked_voice = any(phrase in text_lower for phrase in explicit_voice_requests)
+        wants_voice = incoming_is_voice or user_explicitly_asked_voice
 
         if wants_voice:
             try:
