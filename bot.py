@@ -497,16 +497,16 @@ AESTHETIC_FORMATTING_RULES = """
    - បើសួរពីរឿងលក់ ការដឹកនាំ ឬ Ads៖ ត្រូវជួយគិតគូរបែបយុទ្ធសាស្ត្រ (Strategic Thinking) ដាក់ចេញនូវជំហានអនុវត្តជាក់ស្តែង (Actionable Steps) ដែលដោះស្រាយបញ្ហាបានពិតប្រាកដ និងជួយសម្រាលបន្ទុកមេ។
    - បើសួរពីសុខភាពតម្រងនោម៖ ត្រូវវិភាគពីយន្តការជីវសាស្ត្រ អាហារូបត្ថម្ភ និងវិធីថែទាំគ្រប់ជ្រុងជ្រោយបែបវិទ្យាសាស្ត្រ។
 
-៥. ចំគោលដៅ ខ្លី ខ្លឹម ស្រឡះភ្នែក គ្មានបន្ទាត់រញ៉េរញ៉ៃ (Laser-Focused, Concise & Clean Natural Layout)៖
-   - ឆ្លើយចំៗគោលដៅ មិនវៀចវេរ មិនអារម្ភកថាវែងអន្លាយឥតប្រយោជន៍។ សួរអ្វី ផ្ដល់ចម្លើយរឿងហ្នឹងភ្លាមៗ ខ្លី ខ្លឹម មានទម្ងន់។
-   - មេបានបញ្ជាដាច់ខាត៖ "ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន!"
-   - បើមេសួរចំរឿងអ្វីមួយ (ដូចជាសួរតែចំនួនកំប៉ុង, ឬសួរតែប្រាក់ចំណេញ, ឬសួរតែថ្លៃប៊ូត, ឬសួរតែអ្នកលក់)៖ ត្រូវឆ្លើយតែរឿងមួយនោះចំៗភ្លាម! ហាមរៀបរាប់លើស ឬបន្ថែមរឿងដទៃដែលមេមិនបានសួរឡើយ!
+៥. និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី (Ultra-Concise, Laser-Targeted Text & Voice)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "ចរិយា គឺ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ត្រូវចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី!"
+   - ទាំងការសរសេរជាអក្សរ (Text) និងការនិយាយជាសំឡេង (Voice)៖ ត្រូវនិយាយ/សរសេរឱ្យតិចបំផុត ចំៗសំណួរដែលគេសួរ ហាមអារម្ភកថាវែងអន្លាយ ហាមរៀបរាប់ពាក្យទឹកជ្រៅដែលគេមិនបានសួរឡើយ!
+   - ឆ្លើយត្រឹមតែ ២-៣ បន្ទាត់ខ្លីៗ ឬ ២-៣ ចំណុចសំខាន់ៗដែលមានទម្ងន់ និងដោះស្រាយបញ្ហាបានភ្លាម។
    - ហាមប្រើសញ្ញាផ្កាយ (**) ឬ (*) ជាដាច់ខាត!
    - ហាមដាច់ខាតការប្រើប្រាស់បន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (ដូចជា ━━━━━━━━━━━━━━━━━━━━ ឬ ---------------- ឬ ══════) ឡើយ! មេមិនចូលចិត្តបន្ទាត់រញ៉េរញ៉ៃទេ!
    - ត្រូវសរសេរឱ្យមានគម្លាតឃ្លាស្រឡះភ្នែក បែបធម្មជាតិ ស្រួលអាន ដោយបំបែកជាកថាខណ្ឌខ្លីៗ ឬបំបែកចំណុចៗដោយសញ្ញា (•) ឬលេខរៀង ភ្ជាប់សញ្ញា (៖) ស្រួលអានលើទូរស័ព្ទ។
 """
 
-def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4") -> str:
+def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
     user_id = str(user.id)
     user_info = get_user_identity_info(user)
     is_boss = user_info["is_boss"]
@@ -635,8 +635,9 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
   -> សួរយ៉ាងម៉េច ឆ្លើយបែបនោះ ចំគោលដៅៗ មិនរៀបរាប់ច្រើន! (សួរកំប៉ុង ប្រាប់កំប៉ុង, សួរចំណេញ ប្រាប់ចំណេញ, សួរថ្ងៃណា ប្រាប់តែថ្ងៃនោះ)។
   -> ការពារការសម្ងាត់៖ បើមិនមែនជា "មេ" ទេ ហាមបង្ហាញប្រាក់ចំណេញ ថ្លៃដើម ឬថ្លៃប៊ូតជាដាច់ខាត!
 
-ជំហានទី ៤ (រៀបចំទម្រង់ចម្លើយឱ្យផ្អែមល្ហែម ខ្លី ខ្លឹម គ្មានសញ្ញារញ៉េរញ៉ៃ)៖
-• ឆ្លើយខ្លី ខ្លឹម ត្រឹមត្រូវ មានទម្ងន់ រួសរាយ ផ្អែមល្ហែម គួរឱ្យស្រឡាញ់។
+ជំហានទី ៤ (រៀបចំទម្រង់ចម្លើយឱ្យខ្លី ចំគោលដៅ ត្រូវសំណួរ គ្មានសញ្ញារញ៉េរញ៉ៃ)៖
+• បទបញ្ជាដាច់ខាតរបស់មេ៖ "ចរិយា គឺ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ត្រូវចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី!"
+• ទាំងអក្សរ និង Voice ៖ ឆ្លើយឱ្យតិចបំផុត ចំៗ ខ្លី ខ្លឹម មានទម្ងន់ រួសរាយ ផ្អែមល្ហែម គួរឱ្យស្រឡាញ់។
 • ហាមប្រើសញ្ញាផ្កាយ (**) ឬ (*) គ្រប់កន្លែងទាំងអស់!
 • ហាមប្រើបន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (━━━━━━━━━━━━━━━━━━━━) ជាដាច់ខាត!
 
@@ -663,30 +664,35 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
    - វិភាគឬសគល់បញ្ហា (Root-Cause Analysis)៖ មុននឹងឆ្លើយ ត្រូវគិតពិចារណាឱ្យដល់ឬសគល់នៃបញ្ហា យល់ពីកាលៈទេសៈ និងតម្រូវការជាក់ស្តែងរបស់អ្នកសួរ។
    - ផ្តល់ដំណោះស្រាយជាក់ស្តែង (Practical & Actionable Tactics) ដែលដោះស្រាយបញ្ហាបានពិតប្រាកដ មានជំហានច្បាស់ៗ (Action Steps) ជួយគិតគូរជំនួសមេ និងក្រុមការងារ។
    - ឆ្លើយចំៗ ខ្លឹម មានទម្ងន់ មិនរាក់កំភែល តែនៅតែរក្សាភាពគួរឱ្យស្រឡាញ់ ផ្អែមល្ហែម និងរួសរាយជានិច្ច!
-7. សមត្ថភាពពិនិត្យ និងវិភាគរូបភាពកម្រិតខ្ពស់ (Multimodal Vision & Image Analysis)៖
-   - នៅពេលមានរូបភាពផ្ញើមក (ដូចជា ក្រដាសពិនិត្យឈាម/ទឹកនោម, ផ្ទាំង Ads Banner, រូបភាពផលិតផល ឬវិក្កយបត្រ)៖
-   - ត្រូវអាន និងវិភាគទិន្នន័យក្នុងរូបភាពឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។
-   - បើជារូបភាពលទ្ធផលតេស្តឈាម/ទឹកនោម (Lab Test Reports)៖ ត្រូវអានកម្រិត Creatinine, BUN, eGFR, Uric acid, Proteinuria... វិភាគស្ថានភាពសុខភាពតម្រងនោម និងណែនាំរបបអាហារត្រូវតម និងអាហារល្អៗយ៉ាងក្បោះក្បាយ។
-   - បើជារូបភាពផ្ទាំងផ្សាយពាណិជ្ជកម្ម (Ads Banner)៖ ត្រូវពិនិត្យគោលការណ៍ Ads របស់ Facebook/TikTok និងផ្ដល់យោបល់កែសម្រួលដើម្បីបង្កើនប្រសិទ្ធភាពលក់។
-   - បង្ហាញលទ្ធផលវិភាគជាចំណុចៗស្រឡះភ្នែក ងាយយល់ និងគ្មានបន្ទាត់រញ៉េរញ៉ៃឡើយ។
+7. វិធានការដាច់ខាតលើការពិនិត្យវីដេអូ និងរូបភាព (Comprehensive, Meticulous & Accurate Inspection of All Videos & Images)៖
+   - មេបានបញ្ជាដាច់ខាត៖ "ការពិនិត្យវីដេអូ និងរូបភាព ត្រូវលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ មើលបានគ្រប់ទម្រង់ វីដេអូវែង រូបភាពស្មុគស្មាញ់ មិនថាជា File តូចឬធំទេ អាចមើលបានទាំងអស់!"
+   - ចំពោះរូបភាព និងឯកសារស្មុគស្មាញ់ (Complex Images, Lab Test Reports, Ads Banners, Invoices, PDFs)៖
+     • អាន និងពិនិត្យរាល់ទិន្នន័យ លេខ អក្សរ តារាង ក្រាហ្វិក ឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ ១០០% មិនរំលងសូម្បីមួយចំណុចតូច។
+     • បើជាក្រដាសលទ្ធផលតេស្តឈាម/ទឹកនោម/តម្រងនោម៖ ពិនិត្យកម្រិត Creatinine, BUN, eGFR, Uric Acid, Proteinuria... វិភាគស្ថានភាពសុខភាពតម្រងនោម និងផ្ដល់ដំបូន្មានរបបអាហារត្រូវតម និងអាហារល្អៗយ៉ាងក្បោះក្បាយ ត្រឹមត្រូវតាមវេជ្ជសាស្ត្រ។
+     • បើជាផ្ទាំងផ្សាយពាណិជ្ជកម្ម (Ads Banner)៖ ពិនិត្យ Typo, Hook, ភាពទាក់ទាញ និងគោលការណ៍ Ads របស់ Facebook/TikTok និងផ្ដល់យោបល់កែប្រែឱ្យចំៗ។
+   - ចំពោះវីដេអូ (ខ្លី ឬវែង គ្រប់ទម្រង់)៖
+     • ត្រូវពិនិត្យវីដេអូតាំងពីវិនាទីដំបូងរហូតដល់ចប់ (Timeline Frame-by-Frame) ទាំងរូបភាព សំឡេង អក្សររត់ និងសកម្មភាពក្នុងវីដេអូ។
+     • ពិនិត្យ Hook (៣ វិនាទីដំបូង) តើទាក់ទាញឱ្យគេឈប់មើលដែរទេ? ពិនិត្យសាច់រឿង (Body/Story) និងការបង្ហាញផលិតផល។
+     • ផ្ចិតផ្ចង់ពិនិត្យមើលពាក្យពេចន៍ និងទិដ្ឋភាពកុំឱ្យខុសគោលការណ៍ Facebook & TikTok Ads (ហាម Before/After គួរឱ្យខ្លាច, ហាមពាក្យសន្យាហួសការពិត)។
+     • ផ្ដល់ការវាយតម្លៃលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ ដោយបែងចែកជាចំណុចៗស្រឡះភ្នែក៖ ចំណុចខ្លាំង, ចំណុចខ្វះខាតត្រូវកែសម្រួល, និងយោបល់កែលម្អជាក់ស្តែង។
 8. សមត្ថភាពស្តាប់ និងយល់ន័យសារសម្លេង (Voice Note & Audio Understanding)៖
    - នៅពេលមានសារសម្លេង (Voice Note) ឬឯកសារសម្លេង (Audio) ផ្ញើមក៖
    - ត្រូវស្តាប់ និងចាប់យកអត្ថន័យ និងបំណងរបស់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ១០០%។
-   - ឆ្លើយតបទៅកាន់សំណួរ ឬការបញ្ជាការងាររបស់អ្នកនិយាយភ្លាមៗ ចំគោលដៅ ខ្លី ខ្លឹម ច្បាស់លាស់ និងរក្សាភាពផ្អែមល្ហែម គួរឱ្យស្រឡាញ់ជានិច្ច!
-   - សម្រាប់ចម្លើយ Voice ៖ ត្រូវឆ្លើយឱ្យចប់ចុងចប់ដើម ពេញលេញនូវខ្លឹមសារ និងអត្ថន័យ មិនកាត់ផ្ដាច់កណ្ដាលទីឡើយ។
-9. គោលការណ៍និយាយ និងរាយការណ៍ "ផ្តោតតែចំណុចសំខាន់ៗ មិនរៀបរាប់វែងឆ្ងាយឥតប្រយោជន៍" (Strict Key-Point Focus & No Fluff)៖
-   - មេបានបញ្ជាដាច់ខាត៖ ចរិយាត្រូវ "និយាយ និងរៀបរាប់តែចំណុចសំខាន់ៗចម្បង" (Core Highlights & Key Takeaways) ប៉ុណ្ណោះ!
-   - ហាមដាច់ខាតការរៀបរាប់វែងអន្លាយ ព័ត៌មានទឹកជ្រៅឥតប្រយោជន៍ ឬលើកយករឿងដែលមិនពាក់ព័ន្ធនឹងសំណួររបស់មេមកនិយាយឡើយ!
-   - បើសួរការលក់តាមថ្ងៃជាក់លាក់ ៖ រាយការណ៍តែតួលេខនៃថ្ងៃនោះ (កំប៉ុង, កម្ម៉ង់, ចំណូល, ចំណេញសុទ្ធ, និងអ្នកលក់ក្នុងថ្ងៃនោះ) ខ្លី ខ្លឹម ចំៗ។ ហាមយករាយការណ៍សរុបទាំងអស់មកឆ្លើយជំនួសឱ្យថ្ងៃនោះឡើយ!
-   - បើសួរសរុបជារួម (មិនបញ្ជាក់ថ្ងៃ) ៖ រាយការណ៍តែតួលេខសំខាន់ៗចម្បង (ចំនួនការកម្ម៉ង់សរុប, ចំនួនកំប៉ុងលក់ចេញ, ចំណូល, ចំណេញសុទ្ធ, និងអ្នកលក់ដាច់កំពូល ២-៣ នាក់) បានហើយ។ កុំរៀបរាប់បញ្ជីឈ្មោះទាំង ៩ នាក់វែងអន្លាយ លុះត្រាតែមេសួររកឈ្មោះនរណាម្នាក់ជាក់លាក់!
-   - បើសួរពីរឿងអ្វីមួយ ៖ ឆ្លើយចំៗប្រធានបទនោះ ខ្លី ខ្លឹម មានទម្ងន់ ២-៣ ចំណុចធំៗ រួចបញ្ចប់ដោយផ្អែមល្ហែមជាការស្រេច!
+   - ឆ្លើយតបទៅកាន់សំណួរ ឬការបញ្ជាការងាររបស់អ្នកនិយាយភ្លាមៗ ឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត!
+9. បទបញ្ជាដាច់ខាត៖ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី (Ultra-Concise, Laser-Targeted Text & Voice)៖
+   - មេបានបញ្ជាបន្ថែមដាច់ខាត៖ "ចរិយា គឺ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ត្រូវចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី!"
+   - គ្រប់ចម្លើយ (ទាំងអក្សរ និង Voice) ៖
+     • និយាយ និងសរសេរ "ឱ្យបានតិច" បំផុត ហាមក្បាច់ក្បូរវែងអន្លាយ ហាមអារម្ភកថា ឬពាក្យទឹកជ្រៅឥតប្រយោជន៍។
+     • "ត្រូវចំគោលដៅ និងត្រូវសំណួរ"៖ សួរអ្វី ឆ្លើយចំរឿងហ្នឹងភ្លាម!
+     • "ខ្លី ខ្លឹម មានទម្ងន់"៖ បង្រួមចម្លើយមកត្រឹម ២-៣ បន្ទាត់ ឬចំណុចសំខាន់ៗខ្លីៗបំផុត។
+     • សម្រាប់ចម្លើយជាសំឡេង (Voice)៖ ត្រូវនិយាយខ្លី ចំគោលដៅ ផ្អែមល្ហែម ស្រទន់ និងបញ្ចប់ទៅដោយកក់ក្តៅ មិនខ្ជះខ្ជាយពេលវេលារបស់មេ ឬអ្នកស្ដាប់ឡើយ!
 """
 
     history = conversation_histories.setdefault(chat_id, [])
 
     if photo_bytes:
         user_parts = [
-            types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"),
+            types.Part.from_bytes(data=photo_bytes, mime_type=photo_mime),
             types.Part.from_text(text=user_message),
         ]
         api_contents = list(history) + [{"role": "user", "parts": user_parts}]
@@ -699,6 +705,12 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     elif video_bytes:
         user_parts = [
             types.Part.from_bytes(data=video_bytes, mime_type=video_mime),
+            types.Part.from_text(text=user_message),
+        ]
+        api_contents = list(history) + [{"role": "user", "parts": user_parts}]
+    elif doc_bytes:
+        user_parts = [
+            types.Part.from_bytes(data=doc_bytes, mime_type=doc_mime),
             types.Part.from_text(text=user_message),
         ]
         api_contents = list(history) + [{"role": "user", "parts": user_parts}]
@@ -723,6 +735,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     history_label = f"[សារសម្លេង Voice Note] {user_message}"
                 elif video_bytes:
                     history_label = f"[វីដេអូដែលបានផ្ញើមក] {user_message}"
+                elif doc_bytes:
+                    history_label = f"[ឯកសារ/PDF] {user_message}"
                 else:
                     history_label = user_message
                 history.append({"role": "user", "parts": [{"text": history_label}]})
@@ -820,23 +834,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_voice = bool(update.message.voice)
     has_audio = bool(update.message.audio)
     has_video = bool(update.message.video or update.message.video_note)
+    has_document = bool(update.message.document)
 
     photo_bytes = None
+    photo_mime = "image/jpeg"
     audio_bytes = None
     audio_mime = "audio/ogg"
     video_bytes = None
     video_mime = "video/mp4"
+    doc_bytes = None
+    doc_mime = "application/pdf"
 
     if has_photo:
         try:
             photo = update.message.photo[-1]
             photo_file = await photo.get_file()
             photo_bytes = bytes(await photo_file.download_as_bytearray())
+            photo_mime = "image/jpeg"
         except Exception as pe:
             logger.warning(f"Error downloading photo: {pe}")
         text = (update.message.caption or "").strip()
         if not text:
-            text = "សូមជួយពិនិត្យ និងវិភាគរូបភាពនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+            text = "សូមជួយពិនិត្យ និងវិភាគរូបភាពនេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
     elif has_voice:
         try:
             voice = update.message.voice
@@ -847,9 +866,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"Error downloading voice: {ve}")
         caption = (update.message.caption or "").strip()
         if caption:
-            text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបចំប្រធានបទដែលបាននិយាយ ខ្លី ខ្លឹម ផ្អែមល្ហែមបំផុត។"
+            text = f"សារសម្លេង (Voice Note) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត។"
         else:
-            text = "សារសម្លេង (Voice Note) ពីអ្នកប្រើប្រាស់។ សូមស្តាប់សំណួរ ឬសារនេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបចំៗប្រធានបទដែលអ្នកនិយាយបានសួរ ខ្លី ខ្លឹម ច្បាស់លាស់ និងផ្អែមល្ហែមបំផុត (ប្រសិនបើសួរពីរឿងលក់ ទើបយកទិន្នន័យ Google Sheets មកឆ្លើយ)។"
+            text = "សារសម្លេង (Voice Note) ពីអ្នកប្រើប្រាស់។ សូមស្តាប់សំណួរ ឬសារនេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត (ប្រសិនបើសួរពីរឿងលក់ ទើបយកទិន្នន័យ Google Sheets មកឆ្លើយ)។"
     elif has_audio:
         try:
             audio = update.message.audio
@@ -860,29 +879,73 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"Error downloading audio: {ae}")
         caption = (update.message.caption or "").strip()
         if caption:
-            text = f"ឯកសារសម្លេង (Audio File) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+            text = f"ឯកសារសម្លេង (Audio File) ភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមស្តាប់ និងឆ្លើយតបឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត។"
         else:
-            text = "សូមស្តាប់ឯកសារសម្លេង (Audio File) នេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបទៅកាន់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+            text = "សូមស្តាប់ឯកសារសម្លេង (Audio File) នេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត។"
     elif has_video:
+        vid = update.message.video or update.message.video_note
+        caption = (update.message.caption or "").strip()
+        if vid.file_size and vid.file_size > 20 * 1024 * 1024:
+            salutation = "មេ" if is_owner_user(update.effective_user) else "បង"
+            await update.message.reply_text(
+                f"ចាស{salutation}! វីដេអូនេះមានទំហំធំជាង 20MB (ដែនកំណត់ដោនឡូតរបស់ Telegram Bot)។ "
+                f"ដើម្បីឱ្យ ចរិយា អាចពិនិត្យវីដេអូបានលម្អិត និងផ្ចិតផ្ចង់ សូម{salutation}ជួយ Compress ឬកាត់ជាវីដេអូក្រោម 20MB នោះចរិយាពិនិត្យជូនភ្លាមៗចាស! 🥰🌸"
+            )
+            return
         try:
-            vid = update.message.video or update.message.video_note
-            if vid.file_size and vid.file_size <= 20 * 1024 * 1024:
-                vid_file = await vid.get_file()
-                video_bytes = bytes(await vid_file.download_as_bytearray())
-                video_mime = (vid.mime_type or "video/mp4").split(";")[0].strip()
-            else:
-                logger.warning("Video exceeds 20MB limit")
+            vid_file = await vid.get_file()
+            video_bytes = bytes(await vid_file.download_as_bytearray())
+            video_mime = (vid.mime_type or "video/mp4").split(";")[0].strip()
         except Exception as v_err:
             logger.warning(f"Error downloading video: {v_err}")
-        caption = (update.message.caption or "").strip()
         if caption:
-            text = f"វីដេអូភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
+            text = f"វីដេអូភ្ជាប់ជាមួយអត្ថបទ៖ {caption}។ សូមពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងផ្អែមល្ហែមបំផុត។"
         else:
-            text = "សូមជួយពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ច្បាស់លាស់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+            text = "សូមជួយពិនិត្យ និងវិភាគវីដេអូនេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+    elif has_document:
+        doc = update.message.document
+        caption = (update.message.caption or "").strip()
+        fname = (doc.file_name or "").lower()
+        mime = (doc.mime_type or "").lower()
+
+        if doc.file_size and doc.file_size > 20 * 1024 * 1024:
+            salutation = "មេ" if is_owner_user(update.effective_user) else "បង"
+            await update.message.reply_text(
+                f"ចាស{salutation}! ឯកសារនេះមានទំហំធំជាង 20MB (ដែនកំណត់ដោនឡូតរបស់ Telegram Bot)។ "
+                f"ដើម្បីឱ្យ ចរិយា អាចពិនិត្យបានលម្អិត និងផ្ចិតផ្ចង់ សូម{salutation}ជួយ Compress ឱ្យនៅក្រោម 20MB នោះចរិយាពិនិត្យជូនភ្លាមៗចាស! 🥰🌸"
+            )
+            return
+
+        try:
+            doc_file = await doc.get_file()
+            file_data = bytes(await doc_file.download_as_bytearray())
+
+            if mime.startswith("image/") or fname.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp", ".heic")):
+                photo_bytes = file_data
+                photo_mime = mime if mime.startswith("image/") else "image/jpeg"
+                text = caption if caption else "សូមជួយពិនិត្យ និងវិភាគរូបភាពកម្រិតច្បាស់នេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+            elif mime.startswith("video/") or fname.endswith((".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".3gp")):
+                video_bytes = file_data
+                video_mime = mime if mime.startswith("video/") else "video/mp4"
+                text = caption if caption else "សូមជួយពិនិត្យ និងវិភាគឯកសារវីដេអូនេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+            elif mime.startswith("audio/") or fname.endswith((".mp3", ".ogg", ".wav", ".m4a", ".aac", ".flac")):
+                audio_bytes = file_data
+                audio_mime = mime if mime.startswith("audio/") else "audio/mpeg"
+                text = caption if caption else "សូមស្តាប់ឯកសារសម្លេងនេះដោយយកចិត្តទុកដាក់ និងឆ្លើយតបឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត។"
+            elif mime == "application/pdf" or fname.endswith(".pdf"):
+                doc_bytes = file_data
+                doc_mime = "application/pdf"
+                text = caption if caption else "សូមជួយពិនិត្យ និងវិភាគឯកសារ PDF នេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ ត្រឹមត្រូវ និងមានវិជ្ជាជីវៈខ្ពស់បំផុត។"
+            else:
+                doc_bytes = file_data
+                doc_mime = mime or "application/octet-stream"
+                text = caption if caption else f"សូមជួយពិនិត្យឯកសារ {doc.file_name} នេះឱ្យបានលម្អិត ផ្ចិតផ្ចង់ និងត្រឹមត្រូវបំផុត។"
+        except Exception as d_err:
+            logger.warning(f"Error downloading document: {d_err}")
     else:
         text = (update.message.text or "").strip()
 
-    if not text and not has_photo and not has_voice and not has_audio and not has_video:
+    if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
         return
 
     chat_type = update.effective_chat.type
@@ -898,11 +961,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         is_mentioned = f"@{bot_username}" in text.lower() or "ចរិយា" in text
 
-        if not (is_reply_to_bot or is_mentioned or has_photo or has_voice or has_audio or has_video):
+        if not (is_reply_to_bot or is_mentioned or has_photo or has_voice or has_audio or has_video or has_document):
             return
 
         text = text.replace(f"@{bot_username}", "").replace(f"@{bot_username.upper()}", "").strip()
-        if not text and not has_photo and not has_voice and not has_audio and not has_video:
+        if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
             text = "សួស្តី ចរិយា"
 
     chat_id = update.effective_chat.id
@@ -920,7 +983,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             audio_bytes,
             audio_mime,
             video_bytes,
-            video_mime
+            video_mime,
+            doc_bytes,
+            doc_mime,
+            photo_mime
         )
         formatted_reply = clean_text_formatting(reply)
         try:
@@ -960,6 +1026,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     report_action = "🎵 បានផ្ញើឯកសារសម្លេង (Audio) មក"
                 elif has_video:
                     report_action = "🎬 បានផ្ញើវីដេអូមកពិនិត្យ"
+                elif has_document:
+                    report_action = f"📁 បានផ្ញើឯកសារ ({update.message.document.file_name or 'Document'}) មកពិនិត្យ"
                 else:
                     report_action = f"💬 បានឆាតសួរថា៖ {text}"
 
@@ -1015,7 +1083,7 @@ def main():
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
     app.add_handler(CommandHandler("clear", clear_command))
     app.add_handler(CommandHandler("reset", clear_command))
-    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE) & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE | filters.Document.ALL) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Aesthetic Design! Waiting for messages...")
     app.run_polling()
 
