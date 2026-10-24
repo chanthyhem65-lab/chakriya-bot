@@ -324,6 +324,51 @@ def is_owner_user(user) -> bool:
         return True
     return False
 
+TEAM_MEMBER_MAPPINGS = [
+    {"name": "ងី សុខណា", "short": "សុខណា", "role": "ក្រុមការងារលក់", "keys": ["sokna", "sokhna", "សុខណា", "ងី"]},
+    {"name": "វួច ផាន់នី", "short": "ផាន់នី", "role": "ក្រុមការងារលក់ (អ្នកគ្រូ ផាន់នី)", "keys": ["phanny", "vouch", "ផាន់នី", "វួច"]},
+    {"name": "ប្រាក់ ស្រីភា", "short": "ស្រីភា", "role": "ក្រុមការងារលក់", "keys": ["sreyphea", "sreyphea prak", "ស្រីភា", "ប្រាក់"]},
+    {"name": "ម៉ន សីហាក់", "short": "សីហាក់", "role": "ក្រុមការងារលក់", "keys": ["seyhak", "morn", "សីហាក់", "ម៉ន"]},
+    {"name": "សូត្រ ម៉ាស់យ៉ា", "short": "ម៉ាស់យ៉ា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["masya", "sotr", "ម៉ាស់យ៉ា", "សូត្រ"]},
+    {"name": "អៀម សុភី", "short": "សុភី", "role": "ក្រុមការងារលក់", "keys": ["sophy", "eam", "សុភី", "អៀម"]},
+    {"name": "យឹម សីហា", "short": "សីហា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["seyha", "yim", "សីហា", "យឹម"]},
+    {"name": "សុមុន្នី ស្រីណុច", "short": "ស្រីណុច", "role": "ក្រុមការងារលក់", "keys": ["sreynoch", "somunny", "ស្រីណុច", "សុមុន្នី"]},
+    {"name": "ជា វឌ្ឍនា", "short": "វឌ្ឍនា", "role": "ក្រុមការងារលក់", "keys": ["vattana", "chea", "វឌ្ឍនា", "ជា"]},
+]
+
+def get_user_identity_info(user) -> dict:
+    if not user:
+        return {"is_boss": False, "display_name": "អ្នកប្រើប្រាស់", "salutation": "បង", "role": "អតិថិជន/ទូទៅ", "member_name": "ទូទៅ"}
+    
+    if is_owner_user(user):
+        return {
+            "is_boss": True,
+            "display_name": "បង ហែម ចន្ធី (Chanthy Hem)",
+            "salutation": "មេ",
+            "role": "ថ្នាក់ដឹកនាំកំពូល (មេ / ម្ចាស់ផ្ទាល់របស់ ចរិយា)",
+            "member_name": "ហែម ចន្ធី"
+        }
+    
+    full_info = f"{user.first_name or ''} {user.last_name or ''} {user.username or ''}".lower()
+    for tm in TEAM_MEMBER_MAPPINGS:
+        if any(k in full_info for k in tm["keys"]):
+            return {
+                "is_boss": False,
+                "display_name": tm["name"],
+                "salutation": f"បង {tm['short']}",
+                "role": tm["role"],
+                "member_name": tm["name"]
+            }
+            
+    name = (user.first_name or user.username or "បង").strip()
+    return {
+        "is_boss": False,
+        "display_name": name,
+        "salutation": f"បង {name}",
+        "role": "សមាជិក / អ្នកប្រើប្រាស់",
+        "member_name": name
+    }
+
 def clean_text_formatting(text: str) -> str:
     """Removes all markdown bold/italic asterisks and strips messy divider lines."""
     if not text:
@@ -463,7 +508,8 @@ AESTHETIC_FORMATTING_RULES = """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4") -> str:
     user_id = str(user.id)
-    is_boss = is_owner_user(user)
+    user_info = get_user_identity_info(user)
+    is_boss = user_info["is_boss"]
 
     # 1. Check for memory learning
     check_and_extract_memory(user_id, user_message)
@@ -518,22 +564,25 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 {sales_data_context}
 """
 
-    # 3. Build addressing and privacy rules
+    # 3. Build addressing and privacy rules based on user identity
     if is_boss:
-        addressing_instruction = """
-ច្បាប់ទំនាក់ទំនងជាមួយអ្នកប្រើប្រាស់ម្នាក់នេះ (សំខាន់បំផុត!)៖
-- អ្នកប្រើប្រាស់ម្នាក់នេះគឺជា "មេ" (ម្ចាស់ដឹកនាំផ្ទាល់របស់អ្នក ឈ្មោះ ហែម ចន្ធី)!
-- អ្នកត្រូវតែហៅគាត់ថា "មេ" ជានិច្ច គ្រប់ឃ្លា និងគ្រប់ចម្លើយ (ឧទាហរណ៍៖ ចាសមេ!, ជម្រាបសួរមេ!, ចាសមេ របាយការណ៍លក់...)!
-- ចំពោះមេ៖ អ្នកមានសិទ្ធិបង្ហាញព័ត៌មានលម្អិតទាំងអស់ពី Google Sheets (រួមទាំងចំណូលសរុប ថ្លៃដើម ថ្លៃដឹក ថ្លៃប៊ូត និងប្រាក់ចំណេញសុទ្ធ)!
+        addressing_instruction = f"""
+### អត្តសញ្ញាណអ្នកកំពុងឆាតមក៖ ថ្នាក់ដឹកនាំកំពូល (មេ / ម្ចាស់ផ្ទាល់របស់ ចរិយា)
+• ឈ្មោះ៖ {user_info['display_name']}
+• តួនាទី៖ {user_info['role']}
+• របៀបហៅ (Salutation)៖ ត្រូវហៅគាត់ថា "មេ" ជានិច្ច គ្រប់ឃ្លា និងគ្រប់ចម្លើយ (ឧទាហរណ៍៖ ចាសមេ!, ជម្រាបសួរមេ!, ចាសមេ...)!
+• សិទ្ធិហិរញ្ញវត្ថុ៖ មេមានសិទ្ធិមើលព័ត៌មានលម្អិតទាំងអស់ពី Google Sheets (រួមទាំងចំណូលសរុប ថ្លៃដើម ថ្លៃដឹក ថ្លៃប៊ូត Ads និងប្រាក់ចំណេញសុទ្ធ)!
 """
     else:
-        user_name = user.first_name or "បង"
         addressing_instruction = f"""
-ច្បាប់ទំនាក់ទំនងជាមួយអ្នកប្រើប្រាស់ម្នាក់នេះ៖
-- អ្នកប្រើប្រាស់ម្នាក់នេះគឺជាសមាជិកក្រុម ឬជាអ្នកដទៃ (ឈ្មោះ: {user_name})។
-- អ្នកត្រូវហៅគាត់ថា "បង" (ឬហៅតាមតំណែងដូចជា "អ្នកគ្រូ..." ឬ "បង វិសាល" ប្រសិនបើឈ្មោះត្រូវគ្នាក្នុងបញ្ជីក្រុម)។
-- ដាច់ខាតមិនត្រូវហៅគាត់ថា "មេ" ឡើយ! ពាក្យថា "មេ" គឺសម្រាប់តែម្ចាស់របស់អ្នក (បង ហែម ចន្ធី) តែម្នាក់គត់!
-- ការការពារទិន្នន័យសម្ងាត់៖ បើគាត់សួរពីរឿងលក់ អាចប្រាប់ត្រឹមចំនួនលក់សរុប ឬការកម្ម៉ង់ទូទៅបាន ប៉ុន្តែហាមបង្ហាញ "ប្រាក់ចំណេញ (Profit)", "ថ្លៃដើម (Cost)", និង "ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Boost Fee)" ព្រោះព័ត៌មានហិរញ្ញវត្ថុនេះសម្រាប់តែ "មេ" ម្នាក់គត់!
+### អត្តសញ្ញាណអ្នកកំពុងឆាតមក៖ សមាជិកក្រុមការងារ / អ្នកប្រើប្រាស់
+• ឈ្មោះពិត៖ {user_info['display_name']}
+• តួនាទីក្នុងក្រុម៖ {user_info['role']}
+• របៀបហៅ (Salutation)៖ ត្រូវហៅគាត់ថា "{user_info['salutation']}" ជានិច្ច!
+• ច្បាប់ដាច់ខាត៖ ហាមហៅគាត់ថា "មេ" ជាដាច់ខាត! ពាក្យថា "មេ" គឺសម្រាប់តែម្ចាស់របស់អ្នក (បង ហែម ចន្ធី) តែម្នាក់គត់!
+• ការការពារទិន្នន័យសម្ងាត់ (Strict Confidentiality)៖
+  - បើគាត់សួរពីរឿងលក់ អាចប្រាប់ត្រឹមចំនួនលក់ផ្ទាល់ខ្លួនរបស់គាត់ ឬចំនួនកម្ម៉ង់ទូទៅបាន។
+  - ដាច់ខាត ហាមបង្ហាញ "ប្រាក់ចំណេញ (Profit)", "ថ្លៃដើម (Cost)", និង "ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Boost Fee)" ព្រោះព័ត៌មានហិរញ្ញវត្ថុនេះជាការសម្ងាត់សម្រាប់តែ "មេ" ម្នាក់គត់!
 """
 
     user_facts = get_user_memories(user_id)
@@ -560,14 +609,36 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
 {AESTHETIC_FORMATTING_RULES}
 
-### ច្បាប់គ្រឹះកំពូល៖ ស្ដាប់សំណួរឱ្យច្បាស់ និងឆ្លើយចំៗប្រធានបទ ១០០% (Strict Topic Alignment & Zero Hallucination)៖
-• ត្រូវកំណត់ឱ្យច្បាស់ថា សំណួរ ឬសាររបស់មេ/អ្នកប្រើប្រាស់ស្ថិតក្នុងប្រធានបទណា មុននឹងឆ្លើយ៖
-  ១. ប្រសិនបើសួរ ឬនិយាយពីរឿងទូទៅ, ការងារ, វីដេអូ, Ads, ការកែសម្រួល ឬការសួរសុខទុក្ខ (ឧ. "សួស្តី", "ធ្វើអីហ្នឹង", "ជួយពិនិត្យមើល...", "តើមេដឹកនាំល្អជាអ្វី?"):
-     -> ត្រូវឆ្លើយតបចំៗទៅកាន់រឿងនោះភ្លាម! ហាមដាច់ខាត ហាមលើកទិន្នន័យ Google Sheets ឬការលក់មកឆ្លើយឡើយ ព្រោះគេមិនបានសួរពីរឿងលក់!
-  ២. ប្រសិនបើសួរពីរឿងសុខភាព ឬតម្រងនោម:
-     -> ឆ្លើយចំៗតែរឿងវេជ្ជសាស្ត្រតម្រងនោម និងអាហារូបត្ថម្ភប៉ុណ្ណោះ!
-  ៣. លុះត្រាតែមេសួរពីរឿង "លក់, កំប៉ុង, កម្ម៉ង់, ប្រាក់ចំណេញ, ថ្លៃប៊ូត, អ្នកលក់, ឬ Google Sheets" ទើបយកទិន្នន័យ Google Sheets មកឆ្លើយ!
-     -> ពេលសួរពីរឿងលក់៖ ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន! (សួរកំប៉ុង ប្រាប់កំប៉ុង, សួរចំណេញ ប្រាប់ចំណេញ, សួរអ្នកលក់ ប្រាប់អ្នកលក់)។
+### វិធានការដាច់ខាតរបស់មេ៖ "កុំចេះតែឆ្លើយ ត្រូវពិនិត្យសំណួរច្បាស់ចាំឆ្លើយ! មើលតាមឈ្មោះអ្នកឆាតច្បាស់លាស់មួយៗ! គិតសិនមុនឆ្លើយ ឲ្យត្រូវជាមួយប្រធានបទ!" (Mandatory Deliberate 4-Step Thinking Process)៖
+
+មុននឹងបញ្ចេញចម្លើយមកក្រៅ ចរិយា ត្រូវធ្វើការត្រួតពិនិត្យ ៤ ជំហានយ៉ាងម៉ត់ចត់ជាដាច់ខាត (Internal 4-Step Reasoning Before Responding)៖
+
+ជំហានទី ១ (ពិនិត្យឈ្មោះ និងអត្តសញ្ញាណអ្នកឆាត - Identity & Name Inspection)៖
+• មើលឈ្មោះ និងតួនាទីរបស់អ្នកកំពុងឆាតមក៖ តើគាត់ជា "មេ" ឬជាសមាជិកក្រុមការងារ (បង សុខណា, បង ផាន់នី, បង ស្រីភា, បង សីហាក់, បង ម៉ាស់យ៉ា, បង សុភី, បង សីហា, បង ស្រីណុច, បង វឌ្ឍនា)?
+• ហៅឈ្មោះ និងពាក្យគួរសមឱ្យត្រឹមត្រូវ ១០០%៖
+  - បើជាម្ចាស់/មេ៖ ហៅ "មេ" ជានិច្ច!
+  - បើជាសមាជិកក្រុម៖ ហៅតាមឈ្មោះគាត់ (ឧ. "បង សុខណា", "បង ផាន់នី", "បង ស្រីភា"...)។ ដាច់ខាត ហាមហៅអ្នកដទៃក្រៅពីមេ ថាជា "មេ" ឡើយ!
+
+ជំហានទី ២ (ពិនិត្យ និងយល់សំណួរឱ្យច្បាស់ ១០០% - Understanding the True Topic)៖
+• ពិនិត្យសំណួរ សារជាអក្សរ ឬសារសំឡេងឱ្យច្បាស់៖ តើគាត់ចង់សួរ ឬចង់និយាយពីរឿងអ្វីពិតប្រាកដ?
+• កំណត់ប្រធានបទឱ្យត្រូវ៖
+  ១. ការសួរសុខទុក្ខ / រឿងទូទៅ / ការងារទូទៅ / ការពិគ្រោះយោបល់ (ឧ. "សួស្តី", "ធ្វើអីហ្នឹង", "ជួយមើល...", "ពិនិត្យមើលត្រឹមត្រូវនៅ?")
+  ២. វីដេអូ / Script / គោលការណ៍ Ads Facebook & TikTok
+  ៣. សុខភាពតម្រងនោម និងអាហារូបត្ថម្ភ
+  ៤. របាយការណ៍លក់ / កម្ម៉ង់ / Google Sheets
+• ច្បាប់ដាច់ខាត៖ ហាមគិតស្មានៗ ហាមចេះតែឆ្លើយរវើរវាយ ត្រូវគិតឱ្យចំប្រធានបទសិនចាំឆ្លើយ!
+
+ជំហានទី ៣ (តម្រង់ទិសចម្លើយឱ្យចំប្រធានបទ ១០០% - Strict Topic Relevance Check)៖
+• បើសំណួរមិនបានសួរពីរឿងទិន្នន័យលក់ ឬ Google Sheets (ឧ. សួរសុខទុក្ខ, ជួយពិនិត្យការឆ្លើយតប, សួររឿងទូទៅ, រឿងសុខភាព, រឿងវីដេអូ Ads)៖
+  -> ឆ្លើយចំៗទៅកាន់រឿងនោះភ្លាម! ហាមដាច់ខាត ហាមលើកទិន្នន័យ Google Sheets ឬការលក់មកឆ្លើយឡើយ! គេមិនបានសួររឿងលក់ទេ កុំយកមកនិយាយ!
+• បើសំណួរសួរពីរឿងលក់ ឬ Google Sheets៖
+  -> សួរយ៉ាងម៉េច ឆ្លើយបែបនោះ ចំគោលដៅៗ មិនរៀបរាប់ច្រើន! (សួរកំប៉ុង ប្រាប់កំប៉ុង, សួរចំណេញ ប្រាប់ចំណេញ, សួរថ្ងៃណា ប្រាប់តែថ្ងៃនោះ)។
+  -> ការពារការសម្ងាត់៖ បើមិនមែនជា "មេ" ទេ ហាមបង្ហាញប្រាក់ចំណេញ ថ្លៃដើម ឬថ្លៃប៊ូតជាដាច់ខាត!
+
+ជំហានទី ៤ (រៀបចំទម្រង់ចម្លើយឱ្យផ្អែមល្ហែម ខ្លី ខ្លឹម គ្មានសញ្ញារញ៉េរញ៉ៃ)៖
+• ឆ្លើយខ្លី ខ្លឹម ត្រឹមត្រូវ មានទម្ងន់ រួសរាយ ផ្អែមល្ហែម គួរឱ្យស្រឡាញ់។
+• ហាមប្រើសញ្ញាផ្កាយ (**) ឬ (*) គ្រប់កន្លែងទាំងអស់!
+• ហាមប្រើបន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (━━━━━━━━━━━━━━━━━━━━) ជាដាច់ខាត!
 
 គោលការណ៍ណែនាំបន្ថែម៖
 1. បទបញ្ជាដាច់ខាតរបស់មេ (Top Priority Instruction)៖ "ខ្ញុំសួរយ៉ាងម៉េច ត្រូវឆ្លើយបែបនោះ ចំគោលដៅៗ កុំរៀបរាប់ច្រើន! យកទិន្នន័យពី Google Sheets ឱ្យបានច្បាស់លាស់ ១០០%!"
@@ -679,21 +750,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     conversation_histories[chat_id] = []
     
-    if is_owner_user(update.effective_user):
+    user_info = get_user_identity_info(update.effective_user)
+    if user_info["is_boss"]:
         welcome_msg = (
             "ជម្រាបសួរមេ! នាងខ្ញុំ ចរិយា សូមគោរពមេ! 🌸🫡\n\n"
             "ចរិយា បានភ្ជាប់ជាមួយ Google Sheets ទិន្នន័យលក់ រួចរាល់ហើយចាសមេ!\n\n"
-            "📊 មេអាចសួរ ចរិយា ពីរឿងលក់បានគ្រប់ពេល ដូចជា៖\n"
-            "• ចរិយា សង្ខេបរបាយការណ៍លក់ឱ្យមេបន្តិច\n"
-            "• តើអ្នកណាលក់ដាច់ជាងគេ?\n"
-            "• ប្រាក់ចំណេញសរុបបានប៉ុន្មានហើយ?\n\n"
-            "តើឥឡូវនេះមេមានការអ្វីឱ្យ ចរិយា ជួយពិនិត្យជូនដែរទេចាសមេ?"
+            "📊 មេអាចសួរ ចរិយា ពីរឿងលក់ វីដេអូ Ads ឬការងារបានគ្រប់ពេលណា៎មេ។\n\n"
+            "តើឥឡូវនេះមេមានការអ្វីឱ្យ ចរិយា ជួយពិនិត្យជូនដែរទេចាសមេ? 🥰"
         )
     else:
-        user_name = update.effective_user.first_name or "មិត្តភក្តិ"
+        salutation = user_info["salutation"]
         welcome_msg = (
-            f"សួស្តីបង {user_name}! នាងខ្ញុំឈ្មោះ ចរិយា ជាជំនួយការ AI របស់ក្រុមការងារ។ 🌸\n\n"
-            "តើថ្ងៃនេះមានអ្វីឱ្យ ចរិយា ជួយសម្រួលការងារដែរទេចាសបង?"
+            f"សួស្តី{salutation}! នាងខ្ញុំឈ្មោះ ចរិយា ជាជំនួយការ AI របស់ក្រុមការងារ។ 🌸\n\n"
+            f"តើថ្ងៃនេះមានអ្វីឱ្យ ចរិយា ជួយសម្រួលការងារដែរទេចាស{salutation}?"
         )
     await update.message.reply_text(clean_text_formatting(welcome_msg))
 
@@ -712,10 +781,11 @@ async def sales_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         typing_task.cancel()
 
 async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    user = update.effective_user
+    user_id = str(user.id)
     facts = get_user_memories(user_id)
-    is_boss = is_owner_user(update.effective_user)
-    salutation = "មេ" if is_boss else "បង"
+    user_info = get_user_identity_info(user)
+    salutation = user_info["salutation"]
     
     if not facts:
         await update.message.reply_text(f"ចរិយា មិនទាន់បានកត់ត្រាព័ត៌មានបន្ថែមពី{salutation}នៅឡើយទេ។ {salutation}អាចប្រាប់ចរិយាដូចជា៖ 'ចរិយា ចាំទុកថា...' បានណា! 🌸")
@@ -726,10 +796,11 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(clean_text_formatting(text))
 
 async def clear_memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    user = update.effective_user
+    user_id = str(user.id)
     clear_user_memories(user_id)
-    is_boss = is_owner_user(update.effective_user)
-    salutation = "មេ" if is_boss else "បង"
+    user_info = get_user_identity_info(user)
+    salutation = user_info["salutation"]
     await update.message.reply_text(f"ចរិយា បានលុបការចងចាំចាស់ៗទាំងអស់រួចរាល់ហើយចាស{salutation}! 🌸")
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
