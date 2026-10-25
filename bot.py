@@ -754,38 +754,42 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     else:
         api_contents = list(history) + [{"role": "user", "parts": [{"text": user_message}]}]
 
+    salutation = "មេ" if is_boss else "បង"
     for model_name in AVAILABLE_MODELS:
-        try:
-            response = ai_client.models.generate_content(
-                model=model_name,
-                contents=api_contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=full_system_prompt,
-                    temperature=0.3,
-                ),
-            )
-            if response.text:
-                clean_reply = clean_text_formatting(response.text)
-                if photo_bytes:
-                    history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}"
-                elif audio_bytes:
-                    history_label = f"[សារសម្លេង Voice Note] {user_message}"
-                elif video_bytes:
-                    history_label = f"[វីដេអូដែលបានផ្ញើមក] {user_message}"
-                elif doc_bytes:
-                    history_label = f"[ឯកសារ/PDF] {user_message}"
-                else:
-                    history_label = user_message
-                history.append({"role": "user", "parts": [{"text": history_label}]})
-                history.append({"role": "model", "parts": [{"text": clean_reply}]})
-                if len(history) > MAX_HISTORY * 2:
-                    conversation_histories[chat_id] = history[-MAX_HISTORY * 2:]
-                return clean_reply
-        except Exception as e:
-            logger.warning(f"Error with model {model_name}: {e}")
-            continue
+        for attempt in range(2):
+            try:
+                response = ai_client.models.generate_content(
+                    model=model_name,
+                    contents=api_contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=full_system_prompt,
+                        temperature=0.3,
+                    ),
+                )
+                if response and hasattr(response, "text") and response.text:
+                    clean_reply = clean_text_formatting(response.text)
+                    if photo_bytes:
+                        history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}"
+                    elif audio_bytes:
+                        history_label = f"[សារសម្លេង Voice Note] {user_message}"
+                    elif video_bytes:
+                        history_label = f"[វីដេអូដែលបានផ្ញើមក] {user_message}"
+                    elif doc_bytes:
+                        history_label = f"[ឯកសារ/PDF] {user_message}"
+                    else:
+                        history_label = user_message
+                    history.append({"role": "user", "parts": [{"text": history_label}]})
+                    history.append({"role": "model", "parts": [{"text": clean_reply}]})
+                    if len(history) > MAX_HISTORY * 2:
+                        conversation_histories[chat_id] = history[-MAX_HISTORY * 2:]
+                    return clean_reply
+            except Exception as e:
+                logger.warning(f"Error with model {model_name} (attempt {attempt + 1}): {e}")
+                if attempt == 0:
+                    time.sleep(1.0)
+                continue
 
-    return "សូមអភ័យទោស ប្រព័ន្ធមានការរវល់បន្តិច សូមសាកល្បងសួរម្តងទៀតណា។"
+    return f"ចាស{salutation}! ប្រព័ន្ធទិន្នន័យមានការរវល់បន្តិច សូម{salutation}សាកល្បងសួរម្តងទៀតណា៎! ចរិយានៅក្បែរចាំជួយជានិច្ចចាស 🥰🌸"
 
 async def keep_typing(chat):
     try:
@@ -794,6 +798,43 @@ async def keep_typing(chat):
             await asyncio.sleep(4)
     except asyncio.CancelledError:
         pass
+
+async def safe_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Safely sends text replies to Telegram, chunking if length exceeds 4000 characters."""
+    if not text:
+        return
+    max_len = 4000
+    if len(text) <= max_len:
+        chunks = [text]
+    else:
+        chunks = []
+        remaining = text
+        while remaining:
+            if len(remaining) <= max_len:
+                chunks.append(remaining)
+                break
+            cut = remaining[:max_len].rfind("\n")
+            if cut == -1 or cut < 1000:
+                cut = max_len
+            chunks.append(remaining[:cut].strip())
+            remaining = remaining[cut:].strip()
+
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    for chunk in chunks:
+        if not chunk:
+            continue
+        try:
+            if update.message:
+                await update.message.reply_text(chunk)
+            elif chat_id:
+                await context.bot.send_message(chat_id=chat_id, text=chunk)
+        except Exception as e1:
+            logger.warning(f"reply_text failed, trying send_message fallback: {e1}")
+            try:
+                if chat_id:
+                    await context.bot.send_message(chat_id=chat_id, text=chunk)
+            except Exception as e2:
+                logger.error(f"Cannot send message chunk to chat {chat_id}: {e2}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or not update.message or not update.effective_user:
@@ -827,7 +868,7 @@ async def sales_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "បែងចែកចំណុចច្បាស់លាស់។ ហាមដាច់ខាតការប្រើប្រាស់បន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (━━━━━━━━━━━━━━━━━━━━) និងហាមប្រើសញ្ញាផ្កាយ ** ឡើយ។"
         )
         reply = await asyncio.to_thread(generate_ai_reply, user, chat_id, prompt)
-        await update.message.reply_text(clean_text_formatting(reply))
+        await safe_send_reply(update, context, clean_text_formatting(reply))
     finally:
         typing_task.cancel()
 
@@ -985,6 +1026,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
         return
 
+    # Error shield: check if Telegram media failed to download
+    salutation = "មេ" if is_owner_user(update.effective_user) else "បង"
+    if has_photo and not photo_bytes:
+        await update.message.reply_text(f"សូមអភ័យទោសចាស{salutation}! ការទាញយករូបភាពពី Telegram មានការរអាក់រអួលបន្តិច សូម{salutation}ជួយផ្ញើម្តងទៀតណា៎! 🥰🌸")
+        return
+    if has_video and not video_bytes and (vid.file_size and vid.file_size <= 20 * 1024 * 1024):
+        await update.message.reply_text(f"សូមអភ័យទោសចាស{salutation}! ការទាញយកវីដេអូពី Telegram មានការរអាក់រអួលបន្តិច សូម{salutation}ជួយផ្ញើម្តងទៀតណា៎! 🥰🌸")
+        return
+    if (has_voice or has_audio) and not audio_bytes:
+        await update.message.reply_text(f"សូមអភ័យទោសចាស{salutation}! ការទាញយកសារសំឡេងពី Telegram មានការរអាក់រអួលបន្តិច សូម{salutation}ជួយផ្ញើម្តងទៀតណា៎! 🥰🌸")
+        return
+
     chat_type = update.effective_chat.type
     bot_username = context.bot.username.lower() if context.bot.username else "chakriya_assistant_bot"
 
@@ -1026,10 +1079,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo_mime
         )
         formatted_reply = clean_text_formatting(reply)
-        try:
-            await update.message.reply_text(formatted_reply)
-        except Exception:
-            await context.bot.send_message(chat_id=chat_id, text=formatted_reply)
+        await safe_send_reply(update, context, formatted_reply)
 
         # Voice Reply trigger:
         # បទបញ្ជាដាច់ខាតរបស់មេ៖ សរសេរអក្សរឆ្លើយជាអក្សរ សួរជាសំឡេងឆ្លើយជាសំឡេង!
@@ -1086,13 +1136,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🌸 ចម្លើយរបស់ចរិយា៖\n{formatted_reply}"
                 )
                 try:
-                    await context.bot.send_message(chat_id=int(owner_id), text=clean_text_formatting(report_to_boss))
+                    boss_text = clean_text_formatting(report_to_boss)
+                    if len(boss_text) > 3800:
+                        boss_text = boss_text[:3800] + "\n...(សារវែង ចរិយាសូមកាត់សង្ខេបត្រឹមនេះណា៎មេ)"
+                    await context.bot.send_message(chat_id=int(owner_id), text=boss_text)
                 except Exception as notify_err:
                     logger.warning(f"Could not forward team activity to boss: {notify_err}")
     except Exception as e:
         logger.error(f"Error handling message: {e}")
     finally:
         typing_task.cancel()
+
+async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Catch-all unhandled error handler to prevent bot polling loop crashes."""
+    logger.error("Exception in update handler:", exc_info=context.error)
+    try:
+        if isinstance(update, Update) and update.effective_chat:
+            salutation = "មេ" if update.effective_user and is_owner_user(update.effective_user) else "បង"
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"សូមអភ័យទោសចាស{salutation}! ប្រព័ន្ធជួបបញ្ហាបច្ចេកទេសបន្តិចបន្តួច តែចរិយាបានដំណើរការឡើងវិញជាធម្មតាហើយណា៎! {salutation}អាចសួរម្តងទៀតបានចាស! 🥰🌸"
+            )
+    except Exception as fallback_err:
+        logger.error(f"Global error handler fallback failed: {fallback_err}")
 
 def run_health_check_server():
     default_port = 7860 if os.environ.get("SPACE_ID") else 0
@@ -1124,6 +1190,7 @@ def main():
     print("  Chakriya AI Bot (v9.0 Supreme Peak Evolution) Starting...")
     print("-----------------------------------------------------------------------------------------")
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_error_handler(global_error_handler)
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("report", sales_command))
     app.add_handler(CommandHandler("sales", sales_command))
