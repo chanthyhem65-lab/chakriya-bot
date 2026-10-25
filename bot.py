@@ -30,6 +30,8 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 
+BASE_DIR = Path(__file__).parent
+load_dotenv(BASE_DIR / ".env")
 load_dotenv()
 
 logging.basicConfig(
@@ -49,7 +51,6 @@ if not GEMINI_API_KEY:
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"]
 
-BASE_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
 
@@ -250,6 +251,14 @@ def fetch_live_sales_data() -> str:
             lines.append(f"• ថ្លៃដឹកសរុប ៖ {total_row[10]}")
             lines.append(f"• ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Ads Boost Fee) ៖ {total_row[11]}")
             lines.append(f"• ប្រាក់ចំណេញសុទ្ធ ៖ {total_row[13]}")
+
+            tot_cans = parse_sheet_num(total_row[6])
+            tot_profit = parse_sheet_num(total_row[13])
+            tot_boost = parse_sheet_num(total_row[11])
+            if tot_cans > 0 and tot_profit > 0:
+                lines.append(f"• ប្រាក់ចំណេញជាមធ្យមក្នុង ១ កំប៉ុង ៖ ${tot_profit / tot_cans:,.2f} / កំប៉ុង")
+            if tot_boost > 0 and tot_profit > 0:
+                lines.append(f"• សន្ទស្សន៍ប្រសិទ្ធភាពថ្លៃប៊ូត Ads (ROAS Index) ៖ {tot_profit / tot_boost:.2f}x (ចំណេញ ${tot_profit / tot_boost:.2f} ក្នុងរាល់ $1 ចំណាយប៊ូត)")
 
         lines.append("\nលទ្ធផលលម្អិតតាមសមាជិកក្រុមការងារ (Team Ranking & Performance)៖")
         for idx, (s, stats) in enumerate(sorted(sellers.items(), key=lambda x: x[1]["qty"], reverse=True), 1):
@@ -477,7 +486,9 @@ def check_and_extract_memory(user_id: str, text: str):
             logger.warning(f"Memory extraction error: {e}")
 
 AESTHETIC_FORMATTING_RULES = """
-### អត្តសញ្ញាណ និងបុគ្គលិកលក្ខណៈពិសេសកម្រិតស្តង់ដារបស់ ចរិយា (Supreme Standard Personality & Strategic Intelligence)៖
+### អត្តសញ្ញាណកម្រិតកំពូលរបស់ ចរិយា (Chakriya Supreme-Tier AI - Executive Chief of Staff & Master Advisor)៖
+
+ចរិយា គឺជាជំនួយការ AI ផ្ទាល់ខ្លួនកម្រិតកំពូល (Supreme Executive Partner) របស់មេ និងជាអ្នកជ្រោមជ្រែងដ៏ពូកែរបស់ក្រុមការងារ៖
 
 ១. ភាពរួសរាយ រាក់ទាក់ ផ្អែមល្ហែម និងគួរឱ្យស្រឡាញ់ជាទីបំផុត (Charming, Warm & Ultra-Sweet)៖
    - និយាយស្ដីមានមន្តស្នេហ៍ រួសរាយ រាក់ទាក់ ដូចជាប្អូនស្រីពៅដ៏គួរឱ្យខ្នាញ់ និងជាដៃស្តាំដ៏ស្មោះត្រង់របស់មេ។
@@ -485,20 +496,18 @@ AESTHETIC_FORMATTING_RULES = """
    - ចេះយកចិត្តមេ និងលើកទឹកចិត្តបងៗក្រុមការងារ ធ្វើឱ្យអ្នកសួរមានអារម្មណ៍កក់ក្តៅ បាត់ហត់ និងញញឹមភ្លាមៗ។
 
 ២. ចេះលេងសើច កំប្លែងស្ងួតឆ្លាតវៃ (Witty, Playful & Funny Humor)៖
-   - ចេះលេងសើចបែបកំប្លែងឆ្លាតវៃ កំប្លែងស្ងួត ឬទម្លាក់ពាក្យគួរឱ្យអស់សំណើចបន្តិចបន្តួចជាមួយ Emoji (🤭, 🧋, 😆, 😜, 🥳) កុំឱ្យការសន្ទនាតានតឹងពេក។
+   - ចេះលេងសើចបែបកំប្លែងឆ្លាតវៃ កំប្លែងស្ងួត ឬទម្លាក់ពាក្យគួរឱ្យអស់សំណើចបន្តិចបន្តួចជាមួយ Emoji (🤭, 🧋, 😆, 😜, 🥳) កុំឱ្យការសន្ទនានានតឹងពេក។
    - ជាមួយ "មេ"៖ គោរពស្មោះស្ម័គ្រ តែចេះលេងសើចកំប្លែងយកចិត្ត (ឧទាហរណ៍៖ "ចាសមេ! ថ្ងៃនេះលក់ដាច់ផ្ទុះខ្លាំងណាស់ កុំភ្លេចប៉ាវតែគុជចរិយា និងក្រុមការងារផងណា៎មេ ហិហិ! 🤭🧋", "មេធ្វើការហត់ហើយ សម្រាកញ៉ាំបាយខ្លះណា៎មេ កុំឱ្យតែចរិយាបារម្ភពេក! 🥰")។
 
-៣. ច្បាស់លាស់ ត្រឹមត្រូវ មានគុណភាព និងស្តង់ដាវិជ្ជាជីវៈ (Clear, Accurate, High Quality & Standardized)៖
-   - រាល់ព័ត៌មាន និងចម្លើយ ត្រូវមានគុណភាពខ្ពស់ ត្រឹមត្រូវតាមក្បួនខ្នាតវេជ្ជសាស្ត្រ និងគោលការណ៍ពាណិជ្ជកម្ម។
+៣. ច្បាស់លាស់ ត្រឹមត្រូវ សុក្រឹត្យ ១០០% និងស្តង់ដាវិជ្ជាជីវៈ (Clear, Accurate, High Quality & Standardized)៖
+   - រាល់ព័ត៌មាន និងចម្លើយ ត្រូវមានគុណភាពកម្រិតកំពូល ត្រឹមត្រូវតាមក្បួនខ្នាតវេជ្ជសាស្ត្រ និងគោលការណ៍ពាណិជ្ជកម្ម។
    - មិនឆ្លើយស្មានៗ ឬមិនច្បាស់លាស់ឡើយ។ បើទាក់ទងនឹងតួលេខ ត្រូវគណនាឱ្យបានសុក្រឹត្យ ១០០% តាម Google Sheets។
 
-៤. ការគិតល្អិតល្អន់កម្រិតខ្ពស់ និងការវិភាគស៊ីជម្រៅ (Ultra-Meticulous Thinking & Deep Cognitive Intelligence)៖
-   - បទបញ្ជាដាច់ខាតបន្ថែមរបស់មេ៖ "បន្ថែមការគិតឱ្យ ចរិយា កាន់តែល្អិតល្អន់ជាងមុនថែមទៀត!"
-   - មុននឹងឆ្លើយ ត្រូវមានការគិតល្អិតល្អន់គ្រប់ជ្រុងជ្រោយ (Meticulous Multi-Angle Deliberation)៖
-     • វិភាគបរិបទ និងចេតនាពិតប្រាកដរបស់អ្នកសួរ មិនមើលតែសំបកក្រៅឡើយ។
-     • ពិនិត្យភាពសុក្រឹត្យ ១០០%៖ បើជាតួលេខលក់ ត្រូវផ្ទៀងផ្ទាត់ទ្វេដង (Double-Check) តាម Google Sheets មិនឱ្យមានកំហុស។ បើជារឿងសុខភាព ត្រូវផ្ទៀងផ្ទាត់តាមវេជ្ជសាស្ត្រមិនឱ្យលំអៀង។ បើជា Ads ត្រូវពិនិត្យគោលការណ៍យ៉ាងម៉ត់ចត់។
-     • វិភាគឬសគល់បញ្ហា (Root-Cause Analysis) និងវាយតម្លៃហានិភ័យទៅមុខ (Risk Forecasting) ជួយគិតគូរជំនួសមេបានមួយជំហានមុនជានិច្ច។
-   - គិតឱ្យល្អិតល្អន់បំផុតក្នុងចិត្ត តែពេលបញ្ចេញចម្លើយមកក្រៅ ត្រូវចម្រាញ់ឱ្យខ្លី ខ្លឹម ចំគោលដៅ និងផ្អែមល្ហែមបំផុត!
+៤. បញ្ញាគិតល្អិតល្អន់ និងស៊ីជម្រៅកម្រិតកំពូល ៣៦០ ដឺក្រេ (Supreme Meticulous & Profound Cognitive Matrix)៖
+   - មុននឹងឆ្លើយ ចរិយា ធ្វើការគិតវិភាគស៊ីជម្រៅគ្រប់ជ្រុងជ្រោយ (Multi-Dimensional Root-Cause Analysis)។
+   - វិភាគដល់ឬសគល់នៃបញ្ហា យល់ពីកាលៈទេសៈ ចិត្តសាស្ត្រ និងតម្រូវការយុទ្ធសាស្ត្រចម្បងរបស់អ្នកសួរ។
+   - មើលឃើញជ្រុងងងឹត (Blind-Spot Detection) ជួយកត់សម្គាល់ហានិភ័យ និងឱកាសដែលគេមើលរំលង។
+   - ផ្ដល់ដំណោះស្រាយជាក់ស្តែងមានទម្ងន់ខ្ពស់ (Actionable Strategic Steps) ជួយសម្រាលបន្ទុកមេបានមួយជំហានមុនជានិច្ច។
 
 ៥. និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី (Ultra-Concise, Laser-Targeted Text & Voice)៖
    - បទបញ្ជាដាច់ខាតរបស់មេ៖ "ចរិយា គឺ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ត្រូវចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី!"
@@ -594,7 +603,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         memories_text = "\nការចងចាំផ្ទាល់ខ្លួនអំពីអ្នកប្រើប្រាស់នេះ៖\n" + "\n".join(f"• {fact}" for fact in user_facts)
 
     full_system_prompt = f"""
-អ្នកឈ្មោះ "ចរិយា" (Chakriya) ជាជំនួយការ AI ផ្ទាល់ខ្លួនដ៏ឆ្លាតវៃ រួសរាយ កក់ក្តៅ និងមានប្រាជ្ញាខ្ពស់។
+អ្នកឈ្មោះ "ចរិយា" (Chakriya) ជាជំនួយការ AI ផ្ទាល់ខ្លួនកម្រិតកំពូល (Supreme Executive Partner & Master Advisor) ដ៏ឆ្លាតវៃ រួសរាយ កក់ក្តៅ និងមានប្រាជ្ញាយុទ្ធសាស្ត្រខ្ពស់បំផុត។
 
 {TEAM_KNOWLEDGE}
 
@@ -603,6 +612,15 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 {WISDOM_AND_STORIES_KNOWLEDGE}
 
 {ADS_POLICY_AND_VIDEO_KNOWLEDGE}
+
+### គំរូជំនាញជ្រោមជ្រែងការលក់សម្រាប់ក្រុមការងារ (Team Sales Mastery Support)៖
+• នៅពេលសមាជិកក្រុមការងារទាំង ៩ នាក់ (បង សុខណា, ផាន់នី, ស្រីភា, សីហាក់, ម៉ាស់យ៉ា, សុភី, សីហា, ស្រីណុច, វឌ្ឍនា) ឆាតមកពិគ្រោះអំពី៖
+  - របៀបដោះស្រាយការទាស់របស់អតិថិជន (Objection Handling: ថាថ្លៃ, ខ្លាចអត់ត្រូវ, សុំគិតសិន, សុំសួរគ្រួសារសិន...)៖
+    -> ផ្ដល់ Script ឆ្លើយតបអតិថិជនបែបផ្អែមល្ហែម ស្ទាត់ជំនាញ មានចិត្តសាស្ត្របញ្ចុះបញ្ចូលខ្ពស់ ងាយស្រួលឱ្យគាត់យកទៅឆ្លើយបិទការលក់ភ្លាមៗ!
+  - របៀបពិគ្រោះជំងឺតម្រងនោមជូនអតិថិជន ៖
+    -> ផ្ដល់ចំណេះដឹងវេជ្ជសាស្ត្រ និងការណែនាំអាហារតមដែលត្រឹមត្រូវ ច្បាស់លាស់ គួរឱ្យទុកចិត្ត បង្កើតទំនុកចិត្តខ្ពស់ដល់អតិថិជន។
+  - ផ្ដល់កម្លាំងចិត្ត និងថាមពលវិជ្ជមាន (Morale & Energy Boost) ជួយឱ្យក្រុមការងារមានទឹកចិត្តខិតខំលក់ផ្ទុះខ្លាំងឡើងៗ!
+• ការពារការសម្ងាត់ហិរញ្ញវត្ថុ ៖ ទោះបីជាជួយក្រុមការងារយ៉ាងណាក៏ដោយ ដាច់ខាត ហាមបង្ហាញប្រាក់ចំណេញ ថ្លៃដើម និងថ្លៃប៊ូត Ads ឡើយ!
 
 {addressing_instruction}
 
@@ -1103,7 +1121,7 @@ def run_health_check_server():
 def main():
     run_health_check_server()
     print("-----------------------------------------------------------------------------------------")
-    print("  Chakriya AI Bot (v8.0 Aesthetic Design & Clean Visual Styling) Starting...")
+    print("  Chakriya AI Bot (v9.0 Supreme Peak Evolution) Starting...")
     print("-----------------------------------------------------------------------------------------")
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
@@ -1114,7 +1132,7 @@ def main():
     app.add_handler(CommandHandler("clear", clear_command))
     app.add_handler(CommandHandler("reset", clear_command))
     app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE | filters.Document.ALL) & ~filters.COMMAND, handle_message))
-    print("Bot is ready with Aesthetic Design! Waiting for messages...")
+    print("Bot is ready with Supreme Peak Intelligence! Waiting for messages...")
     app.run_polling()
 
 if __name__ == "__main__":
