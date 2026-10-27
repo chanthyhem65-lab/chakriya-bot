@@ -24,6 +24,16 @@ from google.genai import types
 from datetime import datetime, timezone, timedelta
 import edge_tts
 
+try:
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.enum.shapes import MSO_SHAPE
+    HAS_PPTX = True
+except ImportError:
+    HAS_PPTX = False
+
 ICT = timezone(timedelta(hours=7))
 
 if sys.platform == "win32":
@@ -516,6 +526,10 @@ AESTHETIC_FORMATTING_RULES = """
    - ហាមប្រើសញ្ញាផ្កាយ (**) ឬ (*) ជាដាច់ខាត!
    - ហាមដាច់ខាតការប្រើប្រាស់បន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (ដូចជា ━━━━━━━━━━━━━━━━━━━━ ឬ ---------------- ឬ ══════) ឡើយ! មេមិនចូលចិត្តបន្ទាត់រញ៉េរញ៉ៃទេ!
    - ត្រូវសរសេរឱ្យមានគម្លាតឃ្លាស្រឡះភ្នែក បែបធម្មជាតិ ស្រួលអាន ដោយបំបែកជាកថាខណ្ឌខ្លីៗ ឬបំបែកចំណុចៗដោយសញ្ញា (•) ឬលេខរៀង ភ្ជាប់សញ្ញា (៖) ស្រួលអានលើទូរស័ព្ទ។
+
+៦. សមត្ថភាពបង្កើត File PowerPoint (.pptx) ដោយស្វ័យប្រវត្តិ (Automated Slide Deck Generator)៖
+   - ចរិយា ចេះបង្កើត File PowerPoint (.pptx) ពិតៗយ៉ាងស្អាតប្រណិត 16:9 Widescreen មានកាតចំណុចសំខាន់ៗ និងមាន Speaker Notes បង្កប់សម្រាប់ឡើងនិយាយរួចជាស្រេច!
+   - បើមេ ឬក្រុមការងារចង់បានស្លាយ គ្រាន់តែប្រាប់ថា "ធ្វើស្លាយអំពី..." ឬបញ្ជាតាម /slide [ប្រធានបទ] នោះចរិយានឹងរចនា និងផ្ញើ File .pptx ជូនភ្លាមៗ!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
@@ -904,6 +918,368 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     salutation = "មេ" if is_boss else "បង"
     await update.message.reply_text(f"ចាស{salutation}! ចរិយាបានសម្អាតប្រវត្តិសន្ទនាមុនៗរួចរាល់ហើយ ឥឡូវ{salutation}អាចសួរសំណួរថ្មីបានយ៉ាងស្រឡះចិត្តណា៎! 🌸🥰")
 
+def build_presentation_file(data: dict, output_path: str, salutation: str = "មេ") -> str:
+    """Builds a beautiful 16:9 widescreen PowerPoint presentation using python-pptx."""
+    if not HAS_PPTX:
+        raise RuntimeError("python-pptx is not installed on this system.")
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank_layout = prs.slide_layouts[6]
+
+    COLOR_PRIMARY = RGBColor(15, 32, 67)        # Deep Corporate Navy
+    COLOR_ACCENT = RGBColor(14, 165, 233)       # Modern Cyan
+    COLOR_AMBER = RGBColor(217, 119, 6)         # Warm Amber
+    COLOR_CARD_BG = RGBColor(248, 250, 252)     # Slate 50
+    COLOR_CARD_BORDER = RGBColor(226, 232, 240) # Slate 200
+    COLOR_TEXT = RGBColor(51, 65, 85)           # Slate 700
+    COLOR_MUTED = RGBColor(100, 116, 139)       # Slate 500
+    COLOR_WHITE = RGBColor(255, 255, 255)
+
+    FONT_FAMILY = "Kantumruy Pro"
+
+    # --- SLIDE 1: Cover Slide ---
+    slide1 = prs.slides.add_slide(blank_layout)
+    bg1 = slide1.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+    bg1.fill.solid()
+    bg1.fill.fore_color.rgb = COLOR_PRIMARY
+    bg1.line.fill.background()
+
+    top_bar = slide1.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(1.1), Inches(1.8), Inches(0.08))
+    top_bar.fill.solid()
+    top_bar.fill.fore_color.rgb = COLOR_ACCENT
+    top_bar.line.fill.background()
+
+    tBox = slide1.shapes.add_textbox(Inches(1.0), Inches(1.4), Inches(11.333), Inches(3.4))
+    tf1 = tBox.text_frame
+    tf1.word_wrap = True
+    p1 = tf1.paragraphs[0]
+    p1.text = data.get("title", "បទបង្ហាញយុទ្ធសាស្ត្រ")
+    p1.font.name = FONT_FAMILY
+    p1.font.size = Pt(36)
+    p1.font.bold = True
+    p1.font.color.rgb = COLOR_WHITE
+
+    sub = data.get("subtitle", "")
+    if sub:
+        p2 = tf1.add_paragraph()
+        p2.text = sub
+        p2.font.name = FONT_FAMILY
+        p2.font.size = Pt(20)
+        p2.font.color.rgb = COLOR_ACCENT
+        p2.space_before = Pt(14)
+
+    fBox = slide1.shapes.add_textbox(Inches(1.0), Inches(5.6), Inches(11.333), Inches(1.2))
+    tf_f = fBox.text_frame
+    pf1 = tf_f.paragraphs[0]
+    presenter = data.get("presenter", f"រៀបចំដោយ ចរិយា AI ជូន {salutation}")
+    pf1.text = f"✨ {presenter}"
+    pf1.font.name = FONT_FAMILY
+    pf1.font.size = Pt(14)
+    pf1.font.color.rgb = RGBColor(203, 213, 225)
+
+    pf2 = tf_f.add_paragraph()
+    pf2.text = "🌸 ចរិយា AI Presentation System • ឯកទេសដឹកនាំ និងយុទ្ធសាស្ត្រ"
+    pf2.font.name = FONT_FAMILY
+    pf2.font.size = Pt(12)
+    pf2.font.color.rgb = RGBColor(148, 163, 184)
+    pf2.space_before = Pt(4)
+
+    # --- SLIDES 2..N: Content Slides ---
+    slides_list = data.get("slides", [])
+    total_content = len(slides_list)
+
+    for idx, sdata in enumerate(slides_list):
+        slide = prs.slides.add_slide(blank_layout)
+
+        stitle_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.55), Inches(11.733), Inches(0.75))
+        stf = stitle_box.text_frame
+        stf.word_wrap = True
+        stp = stf.paragraphs[0]
+        stp.text = sdata.get("title", f"ស្លាយទី {idx + 1}")
+        stp.font.name = FONT_FAMILY
+        stp.font.size = Pt(24)
+        stp.font.bold = True
+        stp.font.color.rgb = COLOR_PRIMARY
+
+        uline = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.35), Inches(11.733), Inches(0.03))
+        uline.fill.solid()
+        uline.fill.fore_color.rgb = COLOR_ACCENT
+        uline.line.fill.background()
+
+        cards = sdata.get("cards", [])
+        num_cards = min(len(cards), 4) or 1
+
+        avail_h = 5.2
+        gap = 0.14
+        card_h = (avail_h - (gap * (num_cards - 1))) / num_cards
+        card_y = 1.55
+
+        for c_idx, cinfo in enumerate(cards[:num_cards]):
+            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(card_y), Inches(11.733), Inches(card_h))
+            card.fill.solid()
+            card.fill.fore_color.rgb = COLOR_CARD_BG
+            card.line.color.rgb = COLOR_CARD_BORDER
+            card.line.width = Pt(1)
+
+            tag = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(card_y), Inches(0.12), Inches(card_h))
+            tag.fill.solid()
+            tag.fill.fore_color.rgb = COLOR_ACCENT if (c_idx % 2 == 0) else COLOR_AMBER
+            tag.line.fill.background()
+
+            cbox = slide.shapes.add_textbox(Inches(1.1), Inches(card_y + 0.08), Inches(11.2), Inches(card_h - 0.16))
+            ctf = cbox.text_frame
+            ctf.word_wrap = True
+
+            headline = cinfo.get("headline", "")
+            detail = cinfo.get("detail", "")
+
+            hp = ctf.paragraphs[0]
+            hp.text = f"{c_idx + 1}. {headline}" if not headline.startswith(("1", "2", "3", "4", "•")) else headline
+            hp.font.name = FONT_FAMILY
+            hp.font.size = Pt(16 if num_cards >= 4 else 17)
+            hp.font.bold = True
+            hp.font.color.rgb = COLOR_PRIMARY
+
+            if detail:
+                dp = ctf.add_paragraph()
+                dp.text = detail
+                dp.font.name = FONT_FAMILY
+                dp.font.size = Pt(13 if num_cards >= 4 else 14)
+                dp.font.color.rgb = COLOR_TEXT
+                dp.space_before = Pt(3)
+
+            card_y += card_h + gap
+
+        footer_box = slide.shapes.add_textbox(Inches(0.8), Inches(6.9), Inches(11.733), Inches(0.4))
+        ftf = footer_box.text_frame
+        ftp = ftf.paragraphs[0]
+        ftp.text = f"Chakriya AI • ស្លាយ {idx + 2} / {total_content + 2}"
+        ftp.font.name = FONT_FAMILY
+        ftp.font.size = Pt(10)
+        ftp.font.color.rgb = COLOR_MUTED
+
+        notes = sdata.get("speaker_notes", "")
+        if notes:
+            slide.notes_slide.notes_text_frame.text = f"🗣️ ពាក្យពេចន៍ឡើងនិយាយ (Speaker Notes)៖\n{notes}"
+
+    # --- SLIDE CONCLUSION ---
+    conc_title = data.get("conclusion_title", "សេចក្តីសង្ខេប & ការអនុវត្តបន្ទាប់")
+    conc_points = data.get("conclusion_points", [])
+
+    slide_end = prs.slides.add_slide(blank_layout)
+    bg_end = slide_end.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+    bg_end.fill.solid()
+    bg_end.fill.fore_color.rgb = COLOR_PRIMARY
+    bg_end.line.fill.background()
+
+    eBox = slide_end.shapes.add_textbox(Inches(1.0), Inches(0.8), Inches(11.333), Inches(1.0))
+    etf = eBox.text_frame
+    ep = etf.paragraphs[0]
+    ep.text = f"🎯 {conc_title}"
+    ep.font.name = FONT_FAMILY
+    ep.font.size = Pt(28)
+    ep.font.bold = True
+    ep.font.color.rgb = COLOR_WHITE
+
+    e_line = slide_end.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(1.6), Inches(11.333), Inches(0.04))
+    e_line.fill.solid()
+    e_line.fill.fore_color.rgb = COLOR_ACCENT
+    e_line.line.fill.background()
+
+    if conc_points:
+        cp_box = slide_end.shapes.add_textbox(Inches(1.0), Inches(1.9), Inches(11.333), Inches(3.6))
+        cptf = cp_box.text_frame
+        cptf.word_wrap = True
+        for i, pt in enumerate(conc_points):
+            p = cptf.paragraphs[0] if i == 0 else cptf.add_paragraph()
+            p.text = f"✔ {pt}"
+            p.font.name = FONT_FAMILY
+            p.font.size = Pt(17)
+            p.font.color.rgb = RGBColor(241, 245, 249)
+            p.space_before = Pt(12 if i > 0 else 0)
+
+    banner = slide_end.shapes.add_textbox(Inches(1.0), Inches(5.8), Inches(11.333), Inches(1.0))
+    btf = banner.text_frame
+    bp = btf.paragraphs[0]
+    bp.text = "🌸 សូមអរគុណយ៉ាងជ្រាលជ្រៅ! • Q&A ត្រៀមឆ្លើយរាល់សំណួរ"
+    bp.font.name = FONT_FAMILY
+    bp.font.size = Pt(22)
+    bp.font.bold = True
+    bp.font.color.rgb = COLOR_ACCENT
+
+    prs.save(output_path)
+    return output_path
+
+def generate_slide_deck_json(topic: str, user_info: dict) -> dict | None:
+    """Calls Gemini with multi-model fallback to produce structured presentation slide deck JSON in Khmer."""
+    is_boss = user_info.get("is_boss", False)
+    salutation = "មេ" if is_boss else user_info.get("salutation", "បង")
+
+    prompt = f"""
+អ្នកគឺជាអ្នកជំនាញរៀបចំស្លាយបទបង្ហាញ (Executive PowerPoint & Presentation Designer) កម្រិតកំពូលរបស់ក្រុមហ៊ុន។
+សូមរៀបចំគ្រោងស្លាយបទបង្ហាញ PowerPoint ឱ្យមានលក្ខណៈវិជ្ជាជីវៈខ្ពស់ ខ្លី ខ្លឹម ច្បាស់លាស់ ចំគោលដៅ សម្រាប់ជូន {salutation}។
+
+ប្រធានបទដែលត្រូវធ្វើ៖ {topic}
+
+ទិន្នន័យចំណេះដឹងក្នុងក្រុមហ៊ុន (ប្រសិនបើប្រធានបទពាក់ព័ន្ធនឹងការលក់ សុខភាព ឬ Ads សូមទាញយកចំណេះដឹងនេះមកប្រើ)៖
+{KIDNEY_HEALTH_KNOWLEDGE}
+{ADS_POLICY_AND_VIDEO_KNOWLEDGE}
+{TEAM_KNOWLEDGE}
+
+ទម្រង់លទ្ធផលត្រូវតែជា JSON សុទ្ធ ១០០% ដូចខាងក្រោម (ហាមសរសេរអក្សរផ្សេងក្រៅពី JSON)៖
+{{
+  "title": "ចំណងជើងធំនៃបទបង្ហាញ (ខ្លី ខ្លឹម ទាក់ទាញ)",
+  "subtitle": "អនុចំណងជើង ឬគោលបំណងនៃបទបង្ហាញ",
+  "presenter": "រៀបចំដោយ ចរិយា AI ជូន {salutation}",
+  "slides": [
+    {{
+      "title": "ចំណងជើងស្លាយ",
+      "cards": [
+        {{
+          "headline": "ចំណុចគន្លឹះសំខាន់",
+          "detail": "ការពន្យល់ខ្លីខ្លឹម ច្បាស់ៗ ១-២ បន្ទាត់ ងាយយល់"
+        }},
+        {{
+          "headline": "ចំណុចគន្លឹះសំខាន់ទី២",
+          "detail": "ការពន្យល់ខ្លីខ្លឹម ច្បាស់ៗ ១-២ បន្ទាត់ ងាយយល់"
+        }},
+        {{
+          "headline": "ចំណុចគន្លឹះសំខាន់ទី៣",
+          "detail": "ការពន្យល់ខ្លីខ្លឹម ច្បាស់ៗ ១-២ បន្ទាត់ ងាយយល់"
+        }}
+      ],
+      "speaker_notes": "ពាក្យពេចន៍ និងគន្លឹះសំខាន់ៗដែល {salutation} ត្រូវឡើងនិយាយពន្យល់ក្នុងស្លាយនេះ"
+    }}
+  ],
+  "conclusion_title": "សេចក្តីសង្ខេប & ការអនុវត្តបន្ទាប់",
+  "conclusion_points": [
+    "ចំណុចអនុវត្តទី១...",
+    "ចំណុចអនុវត្តទី២...",
+    "ចំណុចអនុវត្តទី៣..."
+  ]
+}}
+កំណត់សម្គាល់៖
+• ស្លាយមាតិកា (slides) ត្រូវមានចន្លោះពី 3 ទៅ 5 ស្លាយ (កុំឱ្យច្រើនពេក ឬតិចពេក)។
+• កាតនីមួយៗ (cards) ក្នុងស្លាយនីមួយៗត្រូវមានពី 3 ទៅ 4 កាត។
+• ភាសាដែលប្រើត្រូវតែជាភាសាខ្មែរត្រឹមត្រូវ ពិរោះ មានវិជ្ជាជីវៈខ្ពស់។
+"""
+
+    for model_name in AVAILABLE_MODELS:
+        for attempt in range(2):
+            try:
+                response = ai_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"}
+                )
+                if response and response.text:
+                    raw = response.text.strip()
+                    if raw.startswith("```"):
+                        raw = re.sub(r"^```[a-zA-Z]*\n?", "", raw)
+                        raw = re.sub(r"\n?```$", "", raw)
+                    data = json.loads(raw.strip())
+                    if "slides" in data and len(data["slides"]) > 0:
+                        return data
+            except Exception as e:
+                logger.warning(f"Slide JSON gen failed on {model_name} (attempt {attempt+1}): {e}")
+                time.sleep(1.0)
+    return None
+
+async def handle_slide_generation_request(update: Update, context: ContextTypes.DEFAULT_TYPE, topic: str):
+    """Processes request to generate a real PowerPoint (.pptx) file and sends it back to Telegram."""
+    if not update.effective_chat or not update.message or not update.effective_user:
+        return
+    user = update.effective_user
+    user_info = get_user_identity_info(user)
+    is_boss = user_info["is_boss"]
+    salutation = "មេ" if is_boss else user_info["salutation"]
+
+    topic = topic.strip()
+    if not topic or len(topic) < 2:
+        help_text = (
+            f"ចាស{salutation}! ដើម្បីឱ្យចរិយាបង្កើត File PowerPoint (.pptx) ជូន សូម{salutation}ជួយប្រាប់ប្រធានបទ ឬចំណងជើងដែលចង់ធ្វើណា៎! 🥰🌸\n\n"
+            f"ឧទាហរណ៍៖\n"
+            f"• /slide យុទ្ធសាស្ត្របង្កើនការលក់ និងការរត់ Ads លើ Facebook\n"
+            f"• /slide ការថែទាំសុខភាពតម្រងនោម និងរបបអាហារ\n"
+            f"• ឬគ្រាន់តែឆាតថា៖ «ចរិយា ជួយធ្វើស្លាយអំពី ការដឹកនាំក្រុមលក់» ក៏បានដែរចាស!"
+        )
+        await update.message.reply_text(clean_text_formatting(help_text))
+        return
+
+    status_msg = await update.message.reply_text(
+        f"ចាស{salutation}! ចរិយាកំពុងរៀបចំ និងរចនា File PowerPoint (.pptx) ស្ដីពី «{topic}» ជូនយ៉ាងប្រណិត... សូមរង់ចាំបន្តិចណា៎! 🌸✨"
+    )
+    typing_task = asyncio.create_task(keep_typing(update.message.chat))
+
+    temp_path = None
+    try:
+        deck_data = await asyncio.to_thread(generate_slide_deck_json, topic, user_info)
+        if not deck_data or not deck_data.get("slides"):
+            await update.message.reply_text(
+                f"សូមអភ័យទោសចាស{salutation}! ប្រព័ន្ធរៀបចំស្លាយជួបបញ្ហាបន្តិចបន្តួច សូម{salutation}ជួយបញ្ជាក់ប្រធានបទម្តងទៀតណា៎ចាស! 🥰🌸"
+            )
+            return
+
+        temp_filename = f"Chakriya_Slide_{int(time.time())}.pptx"
+        temp_path = BASE_DIR / f"temp_{temp_filename}"
+
+        await asyncio.to_thread(build_presentation_file, deck_data, str(temp_path), salutation)
+
+        slides_count = len(deck_data.get("slides", [])) + 2
+        caption_text = (
+            f"📊 File PowerPoint (.pptx) រួចរាល់ហើយចាស{salutation}!\n\n"
+            f"📌 ប្រធានបទ៖ {deck_data.get('title', topic)}\n"
+            f"📑 ចំនួនស្លាយ៖ {slides_count} ស្លាយ (រួមទាំង Cover & Conclusion)\n"
+            f"🗣️ ក្នុងស្លាយនីមួយៗមានបង្កប់ Speaker Notes សម្រាប់{salutation}ឡើងនិយាយផងដែរណា៎! 🥰🌸"
+        )
+        with open(temp_path, "rb") as doc_f:
+            await update.message.reply_document(
+                document=doc_f,
+                filename=temp_filename,
+                caption=clean_text_formatting(caption_text)
+            )
+
+        if not is_boss:
+            owner_id = bot_config.get("owner_id", "814495505")
+            if owner_id and str(user.id) != str(owner_id):
+                user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
+                if user.username:
+                    user_name += f" (@{user.username})"
+                report_to_boss = (
+                    "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n\n"
+                    f"👤 សមាជិក៖ {user_name}\n"
+                    f"📊 បានស្នើសុំធ្វើស្លាយ PowerPoint (.pptx) ស្ដីពី៖ {topic}\n"
+                    f"🌸 ចរិយាបានរៀបចំ និងផ្ញើ File (.pptx) ជូនរួចរាល់ហើយចាស!"
+                )
+                try:
+                    await context.bot.send_message(chat_id=int(owner_id), text=clean_text_formatting(report_to_boss))
+                except Exception as notify_err:
+                    logger.warning(f"Could not forward slide activity to boss: {notify_err}")
+
+    except Exception as e:
+        logger.error(f"Error in slide generation: {e}")
+        await update.message.reply_text(
+            f"សូមអភ័យទោសចាស{salutation}! ការបង្កើត File PowerPoint មានបញ្ហាបច្ចេកទេសបន្តិចបន្តួច សូម{salutation}សាកល្បងម្ដងទៀតណា៎! 🥰🌸"
+        )
+    finally:
+        typing_task.cancel()
+        if temp_path:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except Exception:
+                pass
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+async def slide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    topic = " ".join(context.args).strip() if context.args else ""
+    await handle_slide_generation_request(update, context, topic)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_user:
         return
@@ -1058,6 +1434,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
             text = "សួស្តី ចរិយា"
 
+    # Slide generation intent detection
+    slide_intent_patterns = [
+        "ធ្វើស្លាយអំពី", "សុំស្លាយអំពី", "បង្កើតស្លាយអំពី", "រៀបចំស្លាយអំពី",
+        "ធ្វើស្លាយស្ដីពី", "សុំស្លាយស្ដីពី", "បង្កើតស្លាយស្ដីពី",
+        "ជួយធ្វើស្លាយ", "ធ្វើស្លាយឱ្យ", "ធ្វើស្លាយឲ្យ", "ធ្វើស្លាយជូន", "ធ្វើស្លាយ",
+        "ធ្វើ powerpoint", "បង្កើត powerpoint", "ធ្វើ ppt", "បង្កើត ppt"
+    ]
+    text_clean = text.lower().strip()
+    is_asking_ability_only = any(q in text_clean for q in ["បានអត់", "បានទេ", "ចេះធ្វើ", "អាចធ្វើ"]) and not any(p in text_clean for p in ["អំពី", "ស្ដីពី", "ពី", "សំរាប់", "សម្រាប់"])
+    wants_slide_generation = any(p in text_clean for p in slide_intent_patterns) and not is_asking_ability_only
+
+    if wants_slide_generation and not (has_photo or has_video or has_audio or has_voice or has_document):
+        topic = text
+        for p in slide_intent_patterns:
+            if p in topic:
+                parts = topic.split(p, 1)
+                if len(parts) > 1 and parts[1].strip():
+                    topic = parts[1].strip()
+                    break
+        await handle_slide_generation_request(update, context, topic)
+        return
+
     chat_id = update.effective_chat.id
     user = update.effective_user
 
@@ -1194,6 +1592,10 @@ def main():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("report", sales_command))
     app.add_handler(CommandHandler("sales", sales_command))
+    app.add_handler(CommandHandler("slide", slide_command))
+    app.add_handler(CommandHandler("slides", slide_command))
+    app.add_handler(CommandHandler("ppt", slide_command))
+    app.add_handler(CommandHandler("powerpoint", slide_command))
     app.add_handler(CommandHandler("memory", memory_command))
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
     app.add_handler(CommandHandler("clear", clear_command))
