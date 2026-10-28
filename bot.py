@@ -381,45 +381,93 @@ def save_config(cfg: dict):
 
 bot_config = load_config()
 
+HARDCODED_OWNER_ID = "814495505"
+TEAM_REGISTRY_FILE = BASE_DIR / "team_registry.json"
+
+def load_team_registry() -> dict:
+    if TEAM_REGISTRY_FILE.exists():
+        try:
+            with open(TEAM_REGISTRY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading team registry: {e}")
+    return {
+        "814495505": {
+            "name": "បង ហែម ចន្ធី (Chanthy Hem)",
+            "short": "មេ",
+            "role": "ថ្នាក់ដឹកនាំកំពូល (មេ / ម្ចាស់ផ្ទាល់របស់ ចរិយា)",
+            "is_boss": True
+        }
+    }
+
+def save_team_registry(reg: dict):
+    try:
+        with open(TEAM_REGISTRY_FILE, "w", encoding="utf-8") as f:
+            json.dump(reg, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving team registry: {e}")
+
+team_registry = load_team_registry()
+
 def is_owner_user(user) -> bool:
+    """Accurately identifies if the user is the Boss (បង ហែម ចន្ធី)."""
     if not user:
         return False
-    if bot_config.get("owner_id") and str(user.id) == str(bot_config["owner_id"]):
+    uid = str(user.id).strip()
+    
+    # 1. Unconditional check for the Boss Telegram ID
+    if uid == HARDCODED_OWNER_ID:
         return True
     
+    # 2. Configured owner_id check
+    cfg_owner = str(bot_config.get("owner_id", "")).strip()
+    if cfg_owner and uid == cfg_owner:
+        return True
+
+    # 3. Environment variable OWNER_ID
+    env_owner = os.getenv("OWNER_ID", "").strip()
+    if env_owner and uid == env_owner:
+        return True
+
+    # 4. Profile name verification
     first_name = (user.first_name or "").lower()
     last_name = (user.last_name or "").lower()
     username = (user.username or "").lower()
+    full_info = f"{first_name} {last_name} {username}"
 
     matches = (
         "chanthy" in first_name or "chanthy" in last_name or "chanthy" in username
         or "ចន្ធី" in first_name or "ចន្ធី" in last_name
-        or "ហែម" in first_name or "ហែម" in last_name
+        or "chanthy hem" in full_info or "ហែម ចន្ធី" in full_info
     )
     if matches:
         if not bot_config.get("owner_id"):
-            bot_config["owner_id"] = str(user.id)
+            bot_config["owner_id"] = uid
             save_config(bot_config)
             logger.info(f"Pinned Owner ID: {user.id}")
         return True
     return False
 
 TEAM_MEMBER_MAPPINGS = [
-    {"name": "ងី សុខណា", "short": "សុខណា", "role": "ក្រុមការងារលក់", "keys": ["sokna", "sokhna", "សុខណា", "ងី"]},
-    {"name": "វួច ផាន់នី", "short": "ផាន់នី", "role": "ក្រុមការងារលក់ (អ្នកគ្រូ ផាន់នី)", "keys": ["phanny", "vouch", "ផាន់នី", "វួច"]},
-    {"name": "ប្រាក់ ស្រីភា", "short": "ស្រីភា", "role": "ក្រុមការងារលក់", "keys": ["sreyphea", "sreyphea prak", "ស្រីភា", "ប្រាក់"]},
-    {"name": "ម៉ន សីហាក់", "short": "សីហាក់", "role": "ក្រុមការងារលក់", "keys": ["seyhak", "morn", "សីហាក់", "ម៉ន"]},
-    {"name": "សូត្រ ម៉ាស់យ៉ា", "short": "ម៉ាស់យ៉ា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["masya", "sotr", "ម៉ាស់យ៉ា", "សូត្រ"]},
-    {"name": "អៀម សុភី", "short": "សុភី", "role": "ក្រុមការងារលក់", "keys": ["sophy", "eam", "សុភី", "អៀម"]},
-    {"name": "យឹម សីហា", "short": "សីហា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["seyha", "yim", "សីហា", "យឹម"]},
-    {"name": "សុមុន្នី ស្រីណុច", "short": "ស្រីណុច", "role": "ក្រុមការងារលក់", "keys": ["sreynoch", "somunny", "ស្រីណុច", "សុមុន្នី"]},
-    {"name": "ជា វឌ្ឍនា", "short": "វឌ្ឍនា", "role": "ក្រុមការងារលក់", "keys": ["vattana", "chea", "វឌ្ឍនា", "ជា"]},
+    {"name": "ងី សុខណា", "short": "សុខណា", "role": "ក្រុមការងារលក់", "keys": ["សុខណា", "sokna", "sokhna", "ងី សុខណា", "ងីសុខណា", "ngy sokna", "sok na", "sokh na"]},
+    {"name": "វួច ផាន់នី", "short": "ផាន់នី", "role": "ក្រុមការងារលក់ (អ្នកគ្រូ ផាន់នី)", "keys": ["ផាន់នី", "phanny", "phan ny", "វួច ផាន់នី", "វួចផាន់នី", "អ្នកគ្រូ ផាន់នី", "vouch phanny", "vouch"]},
+    {"name": "ប្រាក់ ស្រីភា", "short": "ស្រីភា", "role": "ក្រុមការងារលក់", "keys": ["ស្រីភា", "sreyphea", "srey phea", "ប្រាក់ ស្រីភា", "ប្រាក់ស្រីភា", "prak sreyphea", "prak"]},
+    {"name": "ម៉ន សីហាក់", "short": "សីហាក់", "role": "ក្រុមការងារលក់", "keys": ["សីហាក់", "seyhak", "sey hak", "ម៉ន សីហាក់", "ម៉នសីហាក់", "morn seyhak", "morn"]},
+    {"name": "សូត្រ ម៉ាស់យ៉ា", "short": "ម៉ាស់យ៉ា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["ម៉ាស់យ៉ា", "masya", "mas ya", "សូត្រ ម៉ាស់យ៉ា", "សូត្រម៉ាស់យ៉ា", "sotr masya", "masyah", "masya sotr"]},
+    {"name": "អៀម សុភី", "short": "សុភី", "role": "ក្រុមការងារលក់", "keys": ["សុភី", "sophy", "so phy", "អៀម សុភី", "អៀមសុភី", "eam sophy", "sophea", "eam"]},
+    {"name": "យឹម សីហា", "short": "សីហា", "role": "ក្រុមការងារលក់ / Manager", "keys": ["សីហា", "seyha", "sey ha", "យឹម សីហា", "យឹមសីហា", "yim seyha", "seyha yim"]},
+    {"name": "សុមុន្នី ស្រីណុច", "short": "ស្រីណុច", "role": "ក្រុមការងារលក់", "keys": ["ស្រីណុច", "sreynoch", "srey noch", "សុមុន្នី ស្រីណុច", "សុមុន្នីស្រីណុច", "somunny sreynoch", "somunny", "sreynoch somunny"]},
+    {"name": "ជា វឌ្ឍនា", "short": "វឌ្ឍនា", "role": "ក្រុមការងារលក់", "keys": ["វឌ្ឍនា", "vattana", "vat tana", "ជា វឌ្ឍនា", "ជាវឌ្ឍនា", "chea vattana", "vattana chea"]},
 ]
 
-def get_user_identity_info(user) -> dict:
+def get_user_identity_info(user, message_text: str = "") -> dict:
+    """Returns accurate identity profile distinguishing Boss, 9 Team Members, or general users."""
     if not user:
         return {"is_boss": False, "display_name": "អ្នកប្រើប្រាស់", "salutation": "បង", "role": "អតិថិជន/ទូទៅ", "member_name": "ទូទៅ"}
     
+    uid = str(user.id).strip()
+
+    # 1. Boss Identification (Highest Priority)
     if is_owner_user(user):
         return {
             "is_boss": True,
@@ -428,10 +476,38 @@ def get_user_identity_info(user) -> dict:
             "role": "ថ្នាក់ដឹកនាំកំពូល (មេ / ម្ចាស់ផ្ទាល់របស់ ចរិយា)",
             "member_name": "ហែម ចន្ធី"
         }
-    
+
+    # 2. Check in dynamic persistent team registry
+    if uid in team_registry:
+        reg_info = team_registry[uid]
+        if reg_info.get("is_boss"):
+            return {
+                "is_boss": True,
+                "display_name": "បង ហែម ចន្ធី (Chanthy Hem)",
+                "salutation": "មេ",
+                "role": "ថ្នាក់ដឹកនាំកំពូល (មេ / ម្ចាស់ផ្ទាល់របស់ ចរិយា)",
+                "member_name": "ហែម ចន្ធី"
+            }
+        return {
+            "is_boss": False,
+            "display_name": reg_info["name"],
+            "salutation": f"បង {reg_info['short']}",
+            "role": reg_info.get("role", "ក្រុមការងារលក់"),
+            "member_name": reg_info["name"]
+        }
+
+    # 3. Check Telegram profile name / username against official team mappings
     full_info = f"{user.first_name or ''} {user.last_name or ''} {user.username or ''}".lower()
     for tm in TEAM_MEMBER_MAPPINGS:
         if any(k in full_info for k in tm["keys"]):
+            team_registry[uid] = {
+                "name": tm["name"],
+                "short": tm["short"],
+                "role": tm["role"],
+                "is_boss": False
+            }
+            save_team_registry(team_registry)
+            logger.info(f"Auto-mapped team member by profile: {tm['name']} for user {uid}")
             return {
                 "is_boss": False,
                 "display_name": tm["name"],
@@ -439,7 +515,33 @@ def get_user_identity_info(user) -> dict:
                 "role": tm["role"],
                 "member_name": tm["name"]
             }
-            
+
+    # 4. Check if user self-identifies in the message text
+    if message_text:
+        msg_clean = message_text.lower().strip()
+        intro_prefixes = ["ខ្ញុំឈ្មោះ", "ខ្ញុំគឺ", "ខ្ញុំ ", "ឈ្មោះខ្ញុំគឺ", "ឈ្មោះខ្ញុំ", "i am", "my name is"]
+        for tm in TEAM_MEMBER_MAPPINGS:
+            for k in tm["keys"]:
+                for p in intro_prefixes:
+                    if f"{p} {k}" in msg_clean or f"{p}{k}" in msg_clean:
+                        team_registry[uid] = {
+                            "name": tm["name"],
+                            "short": tm["short"],
+                            "role": tm["role"],
+                            "is_boss": False
+                        }
+                        save_team_registry(team_registry)
+                        logger.info(f"Auto-registered team member via chat intro: {tm['name']} for user {uid}")
+                        return {
+                            "is_boss": False,
+                            "display_name": tm["name"],
+                            "salutation": f"បង {tm['short']}",
+                            "role": tm["role"],
+                            "member_name": tm["name"],
+                            "just_identified": True
+                        }
+
+    # 5. Default fallback for general user
     name = (user.first_name or user.username or "បង").strip()
     return {
         "is_boss": False,
@@ -591,11 +693,16 @@ AESTHETIC_FORMATTING_RULES = """
 ៦. សមត្ថភាពបង្កើត File PowerPoint (.pptx) ដោយស្វ័យប្រវត្តិ (Automated Slide Deck Generator)៖
    - ចរិយា ចេះបង្កើត File PowerPoint (.pptx) ពិតៗយ៉ាងស្អាតប្រណិត 16:9 Widescreen មានកាតចំណុចសំខាន់ៗ និងមាន Speaker Notes បង្កប់សម្រាប់ឡើងនិយាយរួចជាស្រេច!
    - បើមេ ឬក្រុមការងារចង់បានស្លាយ គ្រាន់តែប្រាប់ថា "ធ្វើស្លាយអំពី..." ឬបញ្ជាតាម /slide [ប្រធានបទ] នោះចរិយានឹងរចនា និងផ្ញើ File .pptx ជូនភ្លាមៗ!
+
+៧. វិន័យដាច់ខាតក្នុងការឆ្លើយតបក្នុង Group Telegram (Group Chat Etiquette)៖
+   - នៅក្នុង Group ដាច់ខាតមិនត្រូវឆ្លើយផ្តេសផ្តាស់ឡើយ!
+   - ឆ្លើយតបតែនៅពេលណាដែលមានគេហៅឈ្មោះ "ចរិយា" ឬ Mention ឬ Reply ចំសាររបស់ចរិយាប៉ុណ្ណោះ!
+   - បើគេជជែកគ្នាក្នុងក្រុប ឬផ្ញើរូបភាព/វីដេអូដោយមិនបានហៅចរិយាទេ គឺត្រូវនៅស្ងៀម ១០០%!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
     user_id = str(user.id)
-    user_info = get_user_identity_info(user)
+    user_info = get_user_identity_info(user, user_message)
     is_boss = user_info["is_boss"]
 
     # 1. Check for memory learning
@@ -981,6 +1088,116 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     salutation = "មេ" if is_boss else "បង"
     await update.message.reply_text(f"ចាស{salutation}! ចរិយាបានសម្អាតប្រវត្តិសន្ទនាមុនៗរួចរាល់ហើយ ឥឡូវ{salutation}អាចសួរសំណួរថ្មីបានយ៉ាងស្រឡះចិត្តណា៎! 🌸🥰")
 
+async def whoami_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command to check how Chakriya identifies the current user."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    user_info = get_user_identity_info(user)
+    uid = str(user.id)
+
+    if user_info["is_boss"]:
+        msg = (
+            "🫡 ព័ត៌មានអត្តសញ្ញាណរបស់មេ៖\n\n"
+            f"👑 ឈ្មោះ៖ {user_info['display_name']}\n"
+            f"🌟 តួនាទី៖ {user_info['role']}\n"
+            f"🆔 Telegram ID: {uid}\n"
+            "✨ ឋានៈក្នុងប្រព័ន្ធ៖ ថ្នាក់ដឹកនាំកំពូល និងជាម្ចាស់ផ្ទាល់របស់ចរិយា (មានសិទ្ធិមើលរបាយការណ៍ហិរញ្ញវត្ថុទាំងអស់) 🥰🌸"
+        )
+    elif user_info["role"] != "សមាជិក / អ្នកប្រើប្រាស់":
+        msg = (
+            "🌸 ព័ត៌មានអត្តសញ្ញាណរបស់បង៖\n\n"
+            f"👤 ឈ្មោះ៖ {user_info['display_name']}\n"
+            f"💼 តួនាទី៖ {user_info['role']}\n"
+            f"🆔 Telegram ID: {uid}\n"
+            f"✨ របៀបហៅ៖ {user_info['salutation']}\n\n"
+            "ចរិយាស្គាល់បងយ៉ាងច្បាស់ជាសមាជិកក្រុមការងារឆ្នើមចាស! 🥰🌸"
+        )
+    else:
+        msg = (
+            "🌸 ព័ត៌មានអត្តសញ្ញាណ៖\n\n"
+            f"👤 ឈ្មោះ Telegram: {user.full_name or user.first_name}\n"
+            f"🆔 Telegram ID: {uid}\n\n"
+            "💡 ចំណាំ៖ ប្រសិនបើបងជាសមាជិកក្រុមការងារ (សុខណា, ផាន់នី, ស្រីភា, សីហាក់, ម៉ាស់យ៉ា, សុភី, សីហា, ស្រីណុច, វឌ្ឍនា) "
+            "បងគ្រាន់តែឆាតប្រាប់ចរិយាថា «ខ្ញុំឈ្មោះ [ឈ្មោះបង]» នោះចរិយានឹងកត់ត្រា និងចងចាំបងជារៀងរហូតណា៎! 🥰🌸"
+        )
+    await update.message.reply_text(clean_text_formatting(msg))
+
+async def team_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command to view team structure and identity linking status."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    is_boss = is_owner_user(user)
+
+    reg = load_team_registry()
+
+    msg = "📋 បញ្ជីរាយនាមរចនាសម្ព័ន្ធក្រុមការងារ (Team Structure)៖\n\n"
+    msg += f"👑 ថ្នាក់ដឹកនាំកំពូល៖ បង ហែម ចន្ធី (ID: {HARDCODED_OWNER_ID}) ✅ ស្គាល់ច្បាស់\n\n"
+    msg += "👥 សមាជិកក្រុមការងារទាំង ៩ រូប៖\n"
+
+    for i, tm in enumerate(TEAM_MEMBER_MAPPINGS, 1):
+        linked_id = None
+        for uid, info in reg.items():
+            if info.get("name") == tm["name"]:
+                linked_id = uid
+                break
+        status = f"✅ (ID: {linked_id})" if linked_id else "⏳ (មិនទាន់ Link ID)"
+        msg += f"{i}. {tm['name']} - {tm['role']} {status}\n"
+
+    msg += (
+        "\n💡 របៀបឱ្យ ចរិយា ចងចាំសមាជិកក្រុម៖\n"
+        "• សមាជិកម្នាក់ៗគ្រាន់តែឆាតមកចរិយាថា «ខ្ញុំឈ្មោះ [ឈ្មោះរបស់គាត់]» (ឧ. ខ្ញុំឈ្មោះ ផាន់នី) នោះចរិយានឹងចងចាំគាត់ភ្លាមៗ!\n"
+    )
+    if is_boss:
+        msg += "• ឬមេអាចប្រើបញ្ជា៖ /set_team [ឈ្មោះ] [telegram_id] ដើម្បីកំណត់ដោយផ្ទាល់ក៏បានដែរចាសមេ! 🥰🌸"
+
+    await update.message.reply_text(clean_text_formatting(msg))
+
+async def set_team_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Boss-only command to link a Telegram ID to a team member."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    if not is_owner_user(user):
+        await update.message.reply_text("សូមអភ័យទោសចាសបង! បញ្ជានេះសម្រាប់តែ មេ (ថ្នាក់ដឹកនាំកំពូល) តែប៉ុណ្ណោះចាស! 🌸")
+        return
+
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(
+            "ចាសមេ! របៀបប្រើបញ្ជា /set_team៖\n"
+            "/set_team [ឈ្មោះសមាជិក] [Telegram ID]\n\n"
+            "ឧទាហរណ៍៖ /set_team ផាន់នី 123456789\n"
+            "ឬ /set_team សុខណា 987654321"
+        )
+        return
+
+    name_query = args[0].strip().lower()
+    target_id = args[1].strip()
+
+    matched_tm = None
+    for tm in TEAM_MEMBER_MAPPINGS:
+        if name_query in tm["name"].lower() or name_query in tm["short"].lower() or any(name_query in k for k in tm["keys"]):
+            matched_tm = tm
+            break
+
+    if not matched_tm:
+        await update.message.reply_text(f"ចាសមេ! រកមិនឃើញឈ្មោះ «{args[0]}» ក្នុងបញ្ជីសមាជិកទាំង ៩ នាក់ទេ។ សូមមេពិនិត្យឈ្មោះម្តងទៀតណា៎មេ! 🥰")
+        return
+
+    reg = load_team_registry()
+    reg[target_id] = {
+        "name": matched_tm["name"],
+        "short": matched_tm["short"],
+        "role": matched_tm["role"],
+        "is_boss": False
+    }
+    save_team_registry(reg)
+    await update.message.reply_text(
+        f"ចាសមេ! ចរិយាបានភ្ជាប់ Telegram ID {target_id} ទៅកាន់ {matched_tm['name']} ({matched_tm['role']}) រួចរាល់ហើយចាស! 🥰🌸"
+    )
+
 def build_presentation_file(data: dict, output_path: str, salutation: str = "មេ") -> str:
     """Builds a beautiful 16:9 widescreen PowerPoint presentation using python-pptx."""
     if not HAS_PPTX:
@@ -1319,6 +1536,7 @@ async def handle_slide_generation_request(update: Update, context: ContextTypes.
                 user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
                 if user.username:
                     user_name += f" (@{user.username})"
+                user_name += f" [ID: {user.id}]" 
                 report_to_boss = (
                     "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n\n"
                     f"👤 សមាជិក៖ {user_name}\n"
@@ -1353,8 +1571,30 @@ async def slide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await handle_slide_generation_request(update, context, topic)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.effective_user:
+    if not update.message or not update.effective_user or not update.effective_chat:
         return
+
+    chat_type = update.effective_chat.type
+    bot_username = context.bot.username.lower() if context.bot.username else "chakriya_assistant_bot"
+    raw_message_text = (update.message.text or update.message.caption or "").strip()
+
+    # បទបញ្ជាដាច់ខាតរបស់មេ៖ នៅក្នុងក្រុប កុំចេះតែឆ្លើយផ្តេសផ្តាស់ បើមិនមានអ្នកហៅឈ្មោះ "ចរិយា" ឬ Reply លើសាររបស់ចរិយា!
+    if chat_type in ["group", "supergroup"]:
+        is_reply_to_bot = (
+            update.message.reply_to_message
+            and update.message.reply_to_message.from_user
+            and update.message.reply_to_message.from_user.is_bot
+            and update.message.reply_to_message.from_user.username
+            and update.message.reply_to_message.from_user.username.lower() == bot_username
+        )
+        is_called_by_name = (
+            f"@{bot_username}" in raw_message_text.lower()
+            or "ចរិយា" in raw_message_text
+            or "chakriya" in raw_message_text.lower()
+        )
+        # បើគ្មានការហៅឈ្មោះ ឬមិនបាន Reply លើចរិយាទេ ដាច់ខាតត្រូវនៅស្ងៀម ហាមឆ្លើយតបជាដាច់ខាត!
+        if not (is_reply_to_bot or is_called_by_name):
+            return
 
     has_photo = bool(update.message.photo)
     has_voice = bool(update.message.voice)
@@ -1490,18 +1730,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot_username = context.bot.username.lower() if context.bot.username else "chakriya_assistant_bot"
 
     if chat_type in ["group", "supergroup"]:
-        is_reply_to_bot = (
-            update.message.reply_to_message
-            and update.message.reply_to_message.from_user
-            and update.message.reply_to_message.from_user.is_bot
-            and update.message.reply_to_message.from_user.username
-            and update.message.reply_to_message.from_user.username.lower() == bot_username
-        )
-        is_mentioned = f"@{bot_username}" in text.lower() or "ចរិយា" in text
-
-        if not (is_reply_to_bot or is_mentioned or has_photo or has_voice or has_audio or has_video or has_document):
-            return
-
         text = text.replace(f"@{bot_username}", "").replace(f"@{bot_username.upper()}", "").strip()
         if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
             text = "សួស្តី ចរិយា"
@@ -1530,6 +1758,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.effective_chat.id
     user = update.effective_user
+    user_info = get_user_identity_info(user, text)
 
     typing_task = asyncio.create_task(keep_typing(update.message.chat))
 
@@ -1549,6 +1778,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo_mime
         )
         formatted_reply = clean_text_formatting(reply)
+        if user_info.get("just_identified"):
+            formatted_reply = f"ចាស{user_info['salutation']}! ចរិយាបានកត់ត្រា និងចងចាំអត្តសញ្ញាណរបស់{user_info['salutation']}ក្នុងប្រព័ន្ធរួចរាល់ហើយណា៎! 🥰🌸\n\n" + formatted_reply
         await safe_send_reply(update, context, formatted_reply)
 
         # Voice Reply trigger:
@@ -1672,6 +1903,11 @@ def main():
     app.add_handler(CommandHandler("clear_memory", clear_memory_command))
     app.add_handler(CommandHandler("clear", clear_command))
     app.add_handler(CommandHandler("reset", clear_command))
+    app.add_handler(CommandHandler("whoami", whoami_command))
+    app.add_handler(CommandHandler("me", whoami_command))
+    app.add_handler(CommandHandler("id", whoami_command))
+    app.add_handler(CommandHandler("team", team_command))
+    app.add_handler(CommandHandler("set_team", set_team_command))
     app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE | filters.Document.ALL) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Supreme Peak Intelligence! Waiting for messages...")
     app.run_polling()
