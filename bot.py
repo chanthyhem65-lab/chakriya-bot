@@ -64,7 +64,8 @@ AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-l
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
 
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8/export?format=csv"
+BOSTAR_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1yTLq_EepGZfxv_lR8cmTeWWVULgP6ADUkB6uZX2eNA4/export?format=csv"
+SHEET_CSV_URL = BOSTAR_SHEET_CSV_URL
 
 TEAM_KNOWLEDGE = """
 ព័ត៌មានក្រុមហ៊ុន និងរចនាសម្ព័ន្ធក្រុមការងារ (Company & Team Structure)៖
@@ -354,113 +355,89 @@ def fetch_live_sales_data() -> str:
         return _sheet_cache["content"]
 
     try:
-        req = urllib.request.Request(SHEET_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
-        data = urllib.request.urlopen(req, timeout=12).read().decode("utf-8")
-        reader = csv.reader(io.StringIO(data))
-        valid_rows = [r for r in reader if any(c.strip() for c in r)]
+        req = urllib.request.Request(BOSTAR_SHEET_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
+        data = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
+        reader = list(csv.reader(io.StringIO(data)))
         
-        if len(valid_rows) < 2:
-            return "មិនទាន់មានទិន្នន័យក្នុង Sheet នៅឡើយទេ។"
+        if len(reader) < 3:
+            return "មិនទាន់មានទិន្នន័យក្នុង Google Sheets នៅឡើយទេ។"
 
-        total_row = valid_rows[1]
-        orders = [
-            r for r in valid_rows[2:]
-            if len(r) > 2 and r[0].strip().isdigit()
-        ]
+        order_rows = reader[2:]
+        removed_names = {
+            'ញែក សុគន្ធ', 'មុំចាន់នី', 'ស្រី ឡាត់', 'ស៊ីម វត្តី', 'ភឿន សុផា',
+            'ធីន ឡៃហុល', 'សេង ស្រីនូ', 'គឹម ស្រីណយ', 'ឃាន សោភ័ណ', 'ទូច ស្រីលក្ខណ៍',
+            'គឹម ស្រីនីត', 'សួរ ដាវី', 'គង់ សុគា', 'កន ស្រីនាង', 'គឹម ស្រីណិត', 'ស្រី  ឡាត់',
+            'ស្រីឡាត់', 'មុំ ចន្នី', 'ឃាន សោភ័ណ❤️'
+        }
+        name_aliases = {
+            'យឹមសីហា': 'យឹម សីហា', 'យឹម សីហារ': 'យឹម សីហា',
+            'ច័ន្ទរា': 'សារិ ច័ន្ទរា', 'សារិ ចាន់រ៉ា': 'សារិ ច័ន្ទរា',
+            'ស្តី\u200b ស្តេីង': 'ស្ដី ស្ដើង', 'សុមុនី្ន ស្រីណុច': 'សុមុន្នី ស្រីណុច',
+            'ស្រីណែត': 'ទូច ស្រីណែត', 'ភឿនសុផា': 'ភឿន សុផា', 'ជា វឌ្ឃនា': 'ជា វឌ្ឍនា'
+        }
 
-        sellers = {}
-        locations = {}
-        delivery_status = {}
-        cod_status = {}
-        dates_data = {}
+        active_sellers = {}
+        total_orders = 0
+        total_rev = 0.0
+        total_prof = 0.0
+        total_kn = 0
+        thai_orders = 0
+        delivery_counts = {}
 
-        for o in orders:
-            date_val = o[1].strip() if len(o) > 1 and o[1].strip() else "មិនស្គាល់"
-            s_name = o[2].strip() if len(o) > 2 and o[2].strip() else "មិនស្គាល់"
-            loc = o[5].strip() if len(o) > 5 and o[5].strip() else "មិនស្គាល់"
-            try:
-                qty = int(o[6].strip())
-            except ValueError:
-                qty = 1
-            sale_price = parse_sheet_num(o[8]) if len(o) > 8 else 0.0
-            boost_fee = parse_sheet_num(o[11]) if len(o) > 11 else 0.0
-            profit = parse_sheet_num(o[13]) if len(o) > 13 else 0.0
-            d_stat = o[16].strip() if len(o) > 16 and o[16].strip() else "មិនស្គាល់"
-            c_stat = o[17].strip() if len(o) > 17 and o[17].strip() else "មិនស្គាល់"
+        for r in order_rows:
+            if len(r) < 20:
+                continue
+            raw_s = r[3].strip()
+            if not raw_s:
+                continue
+            norm_s = name_aliases.get(raw_s, raw_s)
+            if norm_s in removed_names or raw_s in removed_names:
+                continue
 
-            if date_val not in dates_data:
-                dates_data[date_val] = {"qty": 0, "orders": 0, "revenue": 0.0, "boost": 0.0, "profit": 0.0, "sellers": {}}
-            dates_data[date_val]["qty"] += qty
-            dates_data[date_val]["orders"] += 1
-            dates_data[date_val]["revenue"] += sale_price
-            dates_data[date_val]["boost"] += boost_fee
-            dates_data[date_val]["profit"] += profit
-            dates_data[date_val]["sellers"][s_name] = dates_data[date_val]["sellers"].get(s_name, 0) + qty
+            rev = parse_sheet_num(r[13])
+            prof = parse_sheet_num(r[19])
+            kn = int(parse_sheet_num(r[9]))
+            delivery = r[15].strip()
+            loc = r[5].strip()
 
-            if s_name not in sellers:
-                sellers[s_name] = {"qty": 0, "orders": 0, "revenue": 0.0, "boost": 0.0, "profit": 0.0}
-            sellers[s_name]["qty"] += qty
-            sellers[s_name]["orders"] += 1
-            sellers[s_name]["revenue"] += sale_price
-            sellers[s_name]["boost"] += boost_fee
-            sellers[s_name]["profit"] += profit
+            total_orders += 1
+            total_rev += rev
+            total_prof += prof
+            total_kn += kn
 
-            locations[loc] = locations.get(loc, 0) + qty
-            delivery_status[d_stat] = delivery_status.get(d_stat, 0) + 1
-            cod_status[c_stat] = cod_status.get(c_stat, 0) + 1
+            if "thai" in delivery.lower() or "ថៃ" in loc:
+                thai_orders += 1
+            
+            delivery_counts[delivery] = delivery_counts.get(delivery, 0) + 1
+
+            if norm_s not in active_sellers:
+                active_sellers[norm_s] = {"orders": 0, "rev": 0.0, "profit": 0.0, "kn": 0}
+            active_sellers[norm_s]["orders"] += 1
+            active_sellers[norm_s]["rev"] += rev
+            active_sellers[norm_s]["profit"] += prof
+            active_sellers[norm_s]["kn"] += kn
+
+        thai_pct = (thai_orders / total_orders * 100) if total_orders else 0.0
 
         lines = [
-            "ទិន្នន័យជាក់ស្តែងពី Google Sheets (Live Data Real-time)៖",
-            f"• ចំនួនការកម្ម៉ង់សរុប ៖ {len(orders)} កម្ម៉ង់",
+            "ទិន្នន័យជាក់ស្តែងផ្សាយផ្ទាល់ Real-Time ពី Bostar Group Google Sheets ៖",
+            f"• ចំនួនការកុម្ម៉ង់សរុប (សមាជិកសកម្ម ៣៨ នាក់) ៖ {total_orders:,} Orders",
+            f"• ចំណូលសរុប ៖ ${total_rev:,.2f}",
+            f"• ប្រាក់ចំណេញដុលសរុប ៖ ${total_prof:,.2f}",
+            f"• ចំនួនលក់ចេញ Kidney Pro (KN) សរុប ៖ {total_kn:,} កំប៉ុង",
+            f"• ទីផ្សារប្រទេសថៃ (Thai Orders) ៖ {thai_orders:,} Orders ({thai_pct:.1f}% នៃការបញ្ជាទិញសរុប)",
+            "\nលទ្ធផលលក់តាមសមាជិកសកម្មផ្លូវការរបស់ Bostar Group (Top Active Sellers) ៖"
         ]
-        
-        if len(total_row) > 13:
-            lines.append(f"• ចំនួនលក់ចេញសរុប ៖ {total_row[6]} កំប៉ុង/ប្រអប់")
-            lines.append(f"• ចំណូលសរុប ៖ {total_row[8]}")
-            lines.append(f"• ថ្លៃដើមសរុប ៖ {total_row[9]}")
-            lines.append(f"• ថ្លៃដឹកសរុប ៖ {total_row[10]}")
-            lines.append(f"• ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Ads Boost Fee) ៖ {total_row[11]}")
-            lines.append(f"• ប្រាក់ចំណេញសុទ្ធ ៖ {total_row[13]}")
-
-            tot_cans = parse_sheet_num(total_row[6])
-            tot_profit = parse_sheet_num(total_row[13])
-            tot_boost = parse_sheet_num(total_row[11])
-            if tot_cans > 0 and tot_profit > 0:
-                lines.append(f"• ប្រាក់ចំណេញជាមធ្យមក្នុង ១ កំប៉ុង ៖ ${tot_profit / tot_cans:,.2f} / កំប៉ុង")
-            if tot_boost > 0 and tot_profit > 0:
-                lines.append(f"• សន្ទស្សន៍ប្រសិទ្ធភាពថ្លៃប៊ូត Ads (ROAS Index) ៖ {tot_profit / tot_boost:.2f}x (ចំណេញ ${tot_profit / tot_boost:.2f} ក្នុងរាល់ $1 ចំណាយប៊ូត)")
-
-        lines.append("\nលទ្ធផលលម្អិតតាមសមាជិកក្រុមការងារ (Team Ranking & Performance)៖")
-        for idx, (s, stats) in enumerate(sorted(sellers.items(), key=lambda x: x[1]["qty"], reverse=True), 1):
-            lines.append(f"  {idx}. {s} ៖ {stats['qty']} កំប៉ុង ({stats['orders']} កម្ម៉ង់) | ចំណូល: ${stats['revenue']:,.2f} | ថ្លៃប៊ូត: ${stats['boost']:,.2f} | ចំណេញ: ${stats['profit']:,.2f}")
-
-        lines.append("\nស្ថានភាពដឹកជញ្ជូន (Logistics & Delivery)៖")
-        for ds, cnt in delivery_status.items():
-            lines.append(f"• {ds} ៖ {cnt} កម្ម៉ង់")
-
-        lines.append("\nស្ថានភាពប្រមូលលុយ COD និងទូរទាត់ (Cash Flow & COD Status)៖")
-        for cs, cnt in cod_status.items():
-            lines.append(f"• {cs} ៖ {cnt} កម្ម៉ង់")
-
-        thai_count = locations.get("ថៃ", 0)
-        total_cans = parse_sheet_num(total_row[6]) if len(total_row) > 6 else (sum(s['qty'] for s in sellers.values()) or 1.0)
-        if total_cans <= 0:
-            total_cans = 1.0
-        pct = (thai_count / total_cans) * 100
-        lines.append(f"\nទីផ្សារធំបំផុត ៖ ទីផ្សារប្រទេសថៃ (Thailand) លក់បាន {thai_count} កំប៉ុង ({pct:.1f}% នៃការលក់សរុប)")
-
-        lines.append("\n=== ទិន្នន័យលម្អិតតាមកាលបរិច្ឆេទថ្ងៃនីមួយៗ (Daily Breakdown by Date) ===")
-        for d, ds in dates_data.items():
-            top_s = ", ".join([f"{k} ({v}កំប៉ុង)" for k, v in sorted(ds["sellers"].items(), key=lambda x: x[1], reverse=True)])
-            lines.append(f"• ថ្ងៃ {d} ៖ លក់បាន {ds['qty']} កំប៉ុង ({ds['orders']} កម្ម៉ង់) | ចំណូល: ${ds['revenue']:,.2f} | ថ្លៃប៊ូត: ${ds['boost']:,.2f} | ចំណេញសុទ្ធ: ${ds['profit']:,.2f} | អ្នកលក់៖ {top_s}")
+        for idx, (s, st) in enumerate(sorted(active_sellers.items(), key=lambda x: x[1]["orders"], reverse=True)[:15], 1):
+            lines.append(f"  {idx}. {s} ៖ {st['orders']} Orders | KN: {st['kn']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f} | ចំណេញ: ${st['profit']:,.2f}")
 
         result_text = "\n".join(lines)
         _sheet_cache["time"] = now
         _sheet_cache["content"] = result_text
         return result_text
     except Exception as e:
-        logger.error(f"Error fetching sheet: {e}")
-        return _sheet_cache.get("content") or "មិនអាចទាញទិន្នន័យពី Google Sheets បាននៅពេលនេះទេ។"
+        logger.error(f"Error fetching Bostar sheet: {e}")
+        return _sheet_cache.get("content") or "មិនអាចទាញទិន្នន័យពី Bostar Google Sheets បាននៅពេលនេះទេ។"
 
 def load_config() -> dict:
     if CONFIG_FILE.exists():
@@ -824,7 +801,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
     sheet_connection_knowledge = f"""
 ### ការតភ្ជាប់ផ្ទាល់ជាមួយ Google Sheets (Live Google Sheets Sync Status)៖
-• ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់មេ (https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8) រួចជាស្រេច ១០០%!
+• ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់ Bostar Group របស់មេ (https://docs.google.com/spreadsheets/d/1yTLq_EepGZfxv_lR8cmTeWWVULgP6ADUkB6uZX2eNA4) រួចជាស្រេច ១០០%!
 • ដាច់ខាត ហាមឆ្លើយថា "មិនទាន់អាចចូលមើល Google Sheets បាន" ឬ "សុំឱ្យមេ Export CSV/Excel ឬ Copy ទិន្នន័យមក" ឡើយ! ព្រោះចរិយាមានទិន្នន័យជាក់ស្តែងស្រាប់ក្នុងដៃនៅខាងក្រោមនេះជានិច្ច!
 • នៅពេលមេ ឬនរណាម្នាក់សួរអំពីការលក់ ក្រុមការងារ ថ្លៃប៊ូត ថ្លៃដឹក ឬ COD ត្រូវយកទិន្នន័យជាក់ស្តែងខាងក្រោមនេះមកឆ្លើយតបជូនភ្លាមៗ!
 
