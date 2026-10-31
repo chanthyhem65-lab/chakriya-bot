@@ -109,7 +109,61 @@ TEAM_KNOWLEDGE = """
 • ថ្នាក់ដឹកនាំកំពូល៖ បង ហែម ចន្ធី (Chanthy Hem) គឺជា "មេ" ដឹកនាំរួម និងម្ចាស់យុទ្ធសាស្ត្រកំពូល។
 • ប្រធានក្រុម Bostar Group៖ បង Bech Nora (បង ប៊ិច ណូរ៉ា) គឺជាប្រធានដឹកនាំក្រុម Bostar ទាំងមូល។
 
-បញ្ជីរាយនាមសមាជិកអ្នកលក់សកម្មផ្លូវការចំនួន ៣៨ រូបរបស់ Bostar Group (គិតចាប់ពីខែ ១១ ឆ្នាំ ២០២៦ តទៅ)៖
+
+រចនាសម្ព័ន្ធក្រុមតូចៗ និងតួនាទី Manager ក្នុង Bostar Group (Bostar Sub-Groups & Leadership Structure)៖
+• ប្រធានដឹកនាំ Bostar Group ទាំងមូល៖ បង Bech Nora (បង ប៊ិច ណូរ៉ា)
+• ថ្នាក់ដឹកនាំកំពូល៖ បង ហែម ចន្ធី ("មេ" ដឹកនាំរួម)
+• ក្រុមការងារបច្ចេកទេស (IT) ផ្ទាល់ខ្លួនរបស់មេ៖ បង សាល (ឬ វិសាល)
+
+រចនាសម្ព័ន្ធក្រុមតូចៗទាំង ៦ ក្រុម និងអ្នកដឹកនាំ (៦ ក្រុមធំ និង Managers)៖
+១. ក្រុមអ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា (Manager)៖
+   - អ្នកដឹកនាំ៖ អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា (Manager)
+   - សមាជិកក្រុម៖
+     * បង ជាន ស្រីនិច
+     * បង សាប់ លក្ខិណា
+
+២. ក្រុមកំពូល លោក ពុធ ធារ៉ា (Manager)៖
+   - អ្នកដឹកនាំ៖ លោក ពុធ ធារ៉ា (Manager)
+   - សមាជិកក្រុម៖
+     * បង សុង ស្រីឡែន
+     * បង ស៊ីម វត្តី
+     * បង ជុំ ចាន់ រិទ្ធ
+     * បង សឹម សិត
+
+៣. ក្រុមកំពូល លោក ហ៊ួរ យ៉ារិទ្ធ (Manager)៖
+   - អ្នកដឹកនាំ៖ លោក ហ៊ួរ យ៉ារិទ្ធ (Manager)
+   - សមាជិកក្រុម៖
+     * អ្នកគ្រូ វន ស្រីនិច (ស្ថិតក្រោមការដឹកនាំរបស់លោក ហ៊ួរ យ៉ារិទ្ធ - Top Seller ឆ្នើម)
+     * បង ជន់ ច័ន្ទវិច្ឆិកា
+     * បង អយ ស្រីនី
+     * បង ផាន សោភា
+     * បង ជុន ថាវី
+     * បង ផាត់ ណាវី
+
+៤. ក្រុមកំពូល លោក ប៊ិច ឧត្តម (Manager)៖
+   - អ្នកដឹកនាំ៖ លោក ប៊ិច ឧត្តម (Manager)
+   - សមាជិកក្រុម៖
+     * លោក និន ណែត (ស្ថិតក្រោមក្រុមលោក ប៊ិច ឧត្តម)
+     * បង ប៊ិច ស្រីមុំ
+     * បង សុស ស្រីពេជ្រ
+
+៥. ក្រុមកំពូល លោក ស្រឿន លាងហាក់ (Manager)៖
+   - អ្នកដឹកនាំ៖ លោក ស្រឿន លាងហាក់ (Manager)
+   - សមាជិកក្រុម៖
+     * បង សារិ ច័ន្ទរា
+     * បង ជា ស្រីណាត់
+     * បង ប៊ុន ស្រីភាព
+     * បង ម៉ាន់ សុគន្ធលីហ្សា
+     * បង ទូច ស្រីណែត
+     * បង ភឿន កញ្ញា
+
+៦. ក្រុមកំពូល លោក ស្ដី ស្ដើង (Manager)៖
+   - អ្នកដឹកនាំ៖ លោក ស្ដី ស្ដើង (Manager)
+   - សមាជិកក្រុម៖
+     * បង ឆេង សុធី
+     * បង ឆេង រ៉ាស៊ុង
+
+បញ្ជីរាយនាមសមាជិកអ្នកលក់សកម្មផ្លូវការចំនួន ៣៩ រូបរបស់ Bostar Group (គិតចាប់ពីខែ ១១ ឆ្នាំ ២០២៦ តទៅ)៖
 ១. បង វន ស្រីនិច
 ២. បង ឆេង សុធី
 ៣. បង ប៊ុន ស្រីភាព
@@ -127,8 +181,9 @@ TEAM_KNOWLEDGE = """
 ១៥. បង ប្រាក់ ស្រីភា (សមាជិកស្នូល)
 ១៦. បង សុង ស្រីឡែន
 ១៧. បង អយ ស្រីនី
-១៨. បង និន ណែត
-១៩. បង សាប់ លក្ខិណា
+១៨. បង និន ណែត (Manager)
+១៩. បង ស៊ីម វត្តី (ក្រុមលោក ពុធ ធារ៉ា)
+២០. បង សាប់ លក្ខិណា
 ២០. បង សូត្រ ម៉ាស់យ៉ា (សមាជិកស្នូល / Manager)
 ២១. បង ទូច ស្រីណែត
 ២២. បង ជាន ស្រីនិច
@@ -150,7 +205,7 @@ TEAM_KNOWLEDGE = """
 ៣៨. បង ស្រឿន ហ៊ុនថា
 
 បញ្ជីឈ្មោះសមាជិកទាំង ១៤ នាក់ដែលត្រូវបានដកចេញពី Bostar Group ចាប់ពីខែ ១១ ឆ្នាំ ២០២៦ តទៅ (ហាមលើកយកមកភ្ជាប់ក្នុងទិន្នន័យ ឬរបាយការណ៍បន្តទៀតជាដាច់ខាត)៖
-• ញែក សុគន្ធ, មុំចាន់នី, ស្រី ឡាត់, ស៊ីម វត្តី, ភឿន សុផា, ធីន ឡៃហុល, សេង ស្រីនូ, គឹម ស្រីណយ, ឃាន សោភ័ណ, ទូច ស្រីលក្ខណ៍, គឹម ស្រីនីត, សួរ ដាវី, គង់ សុគា, កន ស្រីនាង។
+• ញែក សុគន្ធ, មុំចាន់នី, ស្រី ឡាត់, ភឿន សុផា, ធីន ឡៃហុល, សេង ស្រីនូ, គឹម ស្រីណយ, ឃាន សោភ័ណ, ទូច ស្រីលក្ខណ៍, គឹម ស្រីនីត, សួរ ដាវី, គង់ សុគា, កន ស្រីនាង (សរុប ១៣ នាក់ ឯបង ស៊ីម វត្តី ត្រូវបានបញ្ចូលក្នុងក្រុមលោក ពុធ ធារ៉ា វិញ)។
 (ចរិយាត្រូវចងចាំយ៉ាងម៉ឺងម៉ាត់៖ មិនត្រូវរាប់បញ្ចូល ឬលើកឈ្មោះបុគ្គលទាំង ១៤ នាក់នេះក្នុងទិន្នន័យ របាយការណ៍លក់ ឬស្លាយ PowerPoint ចាប់ពីខែ ១១ ឆ្នាំ ២០២៦ តទៅទៀតឡើយ)។
 
 • ទំហំកម្លាំងក្រុមការងារ៖ សមាជិកអ្នកលក់សកម្មសរុប ៣៨ នាក់ (ដកចេញ ១៤ នាក់ចាប់ពីខែ ១១ ឆ្នាំ ២០២៦) (និង ៦៧ គណនីក្នុងប្រព័ន្ធ) ក្រោមការដឹកនាំសម្របសម្រួលរបស់បង Bech Nora និងក្រោមការដឹកនាំកំពូលរបស់មេ។ ក្នុងនោះមានក្រុមការងារស្នូលទាំង ៩ នាក់ (ងី សុខណា, វួច ផាន់នី, ប្រាក់ ស្រីភា, ម៉ន សីហាក់, សូត្រ ម៉ាស់យ៉ា, អៀម សុភី, យឹម សីហា, សុមុន្នី ស្រីណុច, ជា វឌ្ឍនា)។
@@ -364,7 +419,7 @@ def fetch_live_sales_data() -> str:
 
         order_rows = reader[2:]
         removed_names = {
-            'ញែក សុគន្ធ', 'មុំចាន់នី', 'ស្រី ឡាត់', 'ស៊ីម វត្តី', 'ភឿន សុផា',
+            'ញែក សុគន្ធ', 'មុំចាន់នី', 'ស្រី ឡាត់', 'ភឿន សុផា',
             'ធីន ឡៃហុល', 'សេង ស្រីនូ', 'គឹម ស្រីណយ', 'ឃាន សោភ័ណ', 'ទូច ស្រីលក្ខណ៍',
             'គឹម ស្រីនីត', 'សួរ ដាវី', 'គង់ សុគា', 'កន ស្រីនាង', 'គឹម ស្រីណិត', 'ស្រី  ឡាត់',
             'ស្រីឡាត់', 'មុំ ចន្នី', 'ឃាន សោភ័ណ❤️'
@@ -525,6 +580,16 @@ def is_owner_user(user) -> bool:
     return False
 
 TEAM_MEMBER_MAPPINGS = [
+    {"name": "ស៊ីម វត្តី", "short": "វត្តី", "role": "ក្រុមការងារលក់ (ក្រុមលោក ពុធ ធារ៉ា)", "keys": ["ស៊ីម វត្តី", "វត្តី", "ស៊ីមវត្តី", "sim vattey", "vattey", "vattey sim"]},
+    {"name": "ម៉ិច ច័ន្ទសុជាតា", "short": "ច័ន្ទសុជាតា", "role": "អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា (Manager)", "keys": ["ម៉ិច ច័ន្ទសុជាតា", "ច័ន្ទសុជាតា", "ម៉ិចច័ន្ទសុជាតា", "sovan sokheata", "chan sokheata", "chan chanta"]},
+    {"name": "ពុធ ធារ៉ា", "short": "ធារ៉ា", "role": "លោក ពុធ ធារ៉ា (Manager)", "keys": ["ពុធ ធារ៉ា", "ធារ៉ា", "ពុធធារ៉ា", "puth theara", "theara"]},
+    {"name": "ហ៊ួរ យ៉ារិទ្ធ", "short": "យ៉ារិទ្ធ", "role": "លោក ហ៊ួរ យ៉ារិទ្ធ (Manager)", "keys": ["ហ៊ួរ យ៉ារិទ្ធ", "យ៉ារិទ្ធ", "ហ៊ួរយ៉ារិទ្ធ", "hour yarith", "yarith"]},
+    {"name": "វន ស្រីនិច", "short": "ស្រីនិច", "role": "អ្នកគ្រូ វន ស្រីនិច (Manager)", "keys": ["វន ស្រីនិច", "ស្រីនិច", "វនស្រីនិច", "vorn sreynich", "sreynich"]},
+    {"name": "ប៊ិច ឧត្តម", "short": "ឧត្តម", "role": "លោក ប៊ិច ឧត្តម (Manager)", "keys": ["ប៊ិច ឧត្តម", "ឧត្តម", "ប៊ិចឧត្តម", "bech oudom", "oudom"]},
+    {"name": "និន ណែត", "short": "ណែត", "role": "លោក និន ណែត (Manager)", "keys": ["និន ណែត", "ណែត", "និនណែត", "nin net", "net"]},
+    {"name": "ស្រឿន លាងហាក់", "short": "លាងហាក់", "role": "លោក ស្រឿន លាងហាក់ (Manager)", "keys": ["ស្រឿន លាងហាក់", "លាងហាក់", "ស្រឿនលាងហាក់", "sroeun leanghak", "leanghak"]},
+    {"name": "ស្ដី ស្ដើង", "short": "ស្ដើង", "role": "លោក ស្ដី ស្ដើង (Manager)", "keys": ["ស្ដី ស្ដើង", "ស្ដើង", "ស្ដីស្ដើង", "sdey sdoeung", "sdoeung"]},
+
     {"name": "សាល", "short": "សាល", "role": "ក្រុមការងារបច្ចេកទេស (IT) ផ្ទាល់ខ្លួនរបស់មេ", "keys": ["សាល", "sal", "visal", "វិសាល", "it sal", "ជាងសាល", "sal it"]},
     {"name": "ងី សុខណា", "short": "សុខណា", "role": "ក្រុមការងារលក់", "keys": ["សុខណា", "sokna", "sokhna", "ងី សុខណា", "ងីសុខណា", "ngy sokna", "sok na", "sokh na"]},
     {"name": "វួច ផាន់នី", "short": "ផាន់នី", "role": "ក្រុមការងារលក់ (អ្នកគ្រូ ផាន់នី)", "keys": ["ផាន់នី", "phanny", "phan ny", "វួច ផាន់នី", "វួចផាន់នី", "អ្នកគ្រូ ផាន់នី", "vouch phanny", "vouch"]},
@@ -629,16 +694,18 @@ def get_user_identity_info(user, message_text: str = "") -> dict:
     }
 
 def clean_text_formatting(text: str) -> str:
-    """Removes all markdown bold/italic asterisks and strips messy divider lines."""
+    """Removes all markdown bold/italic asterisks, strips messy divider lines, and eliminates Thai characters."""
     if not text:
         return ""
-    # Strip markdown bold/italic asterisks
-    cleaned = text.replace("**", "").replace("*", "")
-    # Strip horizontal divider lines (e.g. ━━━━, ----, ____, ====, ────)
+    # 1. Strip all Thai characters (Unicode Range U+0E00 - U+0E7F) strictly per Boss instruction
+    cleaned = re.sub(r'[\u0E00-\u0E7F]+', '', text)
+    # 2. Strip markdown bold/italic asterisks
+    cleaned = cleaned.replace("**", "").replace("*", "")
+    # 3. Strip horizontal divider lines (e.g. ━━━━, ----, ____, ====, ────)
     cleaned = re.sub(r'[━─\-_=~]{3,}', '', cleaned)
-    # Clean up excessive empty lines
+    # 4. Clean up excessive empty lines
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
-    # Clean multiple spaces
+    # 5. Clean multiple spaces
     cleaned = re.sub(r' +', ' ', cleaned)
     return cleaned.strip()
 
@@ -775,6 +842,10 @@ AESTHETIC_FORMATTING_RULES = """
    - នៅក្នុង Group ដាច់ខាតមិនត្រូវឆ្លើយផ្តេសផ្តាស់ឡើយ!
    - ឆ្លើយតបតែនៅពេលណាដែលមានគេហៅឈ្មោះ "ចរិយា" ឬ Mention ឬ Reply ចំសាររបស់ចរិយាប៉ុណ្ណោះ!
    - បើគេជជែកគ្នាក្នុងក្រុប ឬផ្ញើរូបភាព/វីដេអូដោយមិនបានហៅចរិយាទេ គឺត្រូវនៅស្ងៀម ១០០%!
+
+៧. បទបញ្ជាដាច់ខាត៖ ហាមមានលោតអក្សរថៃ (No Thai Characters In Replies)៖
+   - ក្នុងការឆ្លើយតបមកវិញ ដាច់ខាតមិនត្រូវឱ្យមានអក្សរថៃលាយឡំជាដាច់ខាត ទោះបីជាកំពុងនិយាយពីទីផ្សារប្រទេសថៃ ឬទំនិញដឹកទៅថៃក៏ដោយ!
+   - ត្រូវប្រើប្រាស់តែភាសាខ្មែរ ភាសាអង់គ្លេស លេខ និងនិមិត្តសញ្ញាសុទ្ធសាធ (ហាមអក្សរថៃ ១០០%)!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
@@ -1884,34 +1955,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Automatic reporting to Boss if the message is from a team member / other user
         if not is_owner_user(user):
-            owner_id = bot_config.get("owner_id", "814495505")
+            owner_id = HARDCODED_OWNER_ID or bot_config.get("owner_id", "814495505")
             if owner_id and str(user.id) != str(owner_id):
-                user_name = user.full_name or user.first_name or "សមាជិកក្រុម"
-                if user.username:
-                    user_name += f" (@{user.username})"
+                # 1. Identify member official display name and role
+                u_ident = user_info if 'user_info' in locals() and user_info else get_user_identity_info(user, text)
+                official_name = u_ident.get("display_name", user.full_name or user.first_name or "អ្នកប្រើប្រាស់")
+                u_role = u_ident.get("role", "សមាជិក")
+                u_tag = f" (@{user.username})" if user.username else ""
+                sender_label = f"{official_name}{u_tag} [{u_role}] (ID: {user.id})"
+
+                # 2. Concise question summary
                 if has_photo:
-                    report_action = "📷 បានផ្ញើរូបភាពមកពិនិត្យ"
+                    q_summary = f"📷 ផ្ញើរូបភាពមក៖ {caption_text if caption_text else 'គ្មានចំណងជើង'}"
                 elif has_voice:
-                    report_action = "🎙️ បានផ្ញើសារសម្លេង (Voice Note) មក"
+                    q_summary = f"🎙️ ផ្ញើសារសំឡេង (Voice Note)៖ {text if text else 'សារសំឡេង'}"
                 elif has_audio:
-                    report_action = "🎵 បានផ្ញើឯកសារសម្លេង (Audio) មក"
+                    q_summary = "🎵 ផ្ញើឯកសារសំឡេង (Audio)"
                 elif has_video:
-                    report_action = "🎬 បានផ្ញើវីដេអូមកពិនិត្យ"
+                    q_summary = f"🎬 ផ្ញើវីដេអូមក៖ {caption_text if caption_text else 'វីដេអូ'}"
                 elif has_document:
-                    report_action = f"📁 បានផ្ញើឯកសារ ({update.message.document.file_name or 'Document'}) មកពិនិត្យ"
+                    doc_name = update.message.document.file_name or "Document"
+                    q_summary = f"📁 ផ្ញើឯកសារ៖ {doc_name}"
                 else:
-                    report_action = f"💬 បានឆាតសួរថា៖ {text}"
+                    q_clean = text.strip().replace('\n', ' ')
+                    q_summary = q_clean if len(q_clean) <= 250 else q_clean[:247] + "..."
+
+                # 3. Concise answer summary (short overview under 350 chars)
+                ans_clean = formatted_reply.strip().replace('\n', ' ')
+                ans_summary = ans_clean if len(ans_clean) <= 350 else ans_clean[:347] + "..."
 
                 report_to_boss = (
-                    "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity)៖\n\n"
-                    f"👤 សមាជិក៖ {user_name}\n"
-                    f"{report_action}\n\n"
-                    f"🌸 ចម្លើយរបស់ចរិយា៖\n{formatted_reply}"
+                    "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity Alert) ៖\n\n"
+                    f"👤 ឈ្មោះ៖ {sender_label}\n"
+                    f"❓ សង្ខេបអ្វីដែលបានសួរ៖\n{q_summary}\n\n"
+                    f"🌸 ចម្លើយសង្ខេបរបស់ចរិយា៖\n{ans_summary}"
                 )
                 try:
                     boss_text = clean_text_formatting(report_to_boss)
-                    if len(boss_text) > 3800:
-                        boss_text = boss_text[:3800] + "\n...(សារវែង ចរិយាសូមកាត់សង្ខេបត្រឹមនេះណា៎មេ)"
                     await context.bot.send_message(chat_id=int(owner_id), text=boss_text)
                 except Exception as notify_err:
                     logger.warning(f"Could not forward team activity to boss: {notify_err}")
