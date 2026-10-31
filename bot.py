@@ -431,13 +431,9 @@ def fetch_live_sales_data() -> str:
             'ស្រីណែត': 'ទូច ស្រីណែត', 'ភឿនសុផា': 'ភឿន សុផា', 'ជា វឌ្ឃនា': 'ជា វឌ្ឍនា'
         }
 
-        active_sellers = {}
-        total_orders = 0
-        total_rev = 0.0
-        total_prof = 0.0
-        total_kn = 0
-        thai_orders = 0
-        delivery_counts = {}
+        # Monthly aggregation structure with Customer Segmentation
+        monthly_data = {}
+        seen_customers = set()
 
         for r in order_rows:
             if len(r) < 20:
@@ -449,42 +445,99 @@ def fetch_live_sales_data() -> str:
             if norm_s in removed_names or raw_s in removed_names:
                 continue
 
+            date_str = r[0].strip()
+            try:
+                dt = datetime.strptime(date_str, '%d/%m/%Y')
+                m_key = dt.strftime('%Y-%m')
+                m_label = f"ខែ {dt.month:02d}/{dt.year}"
+            except Exception:
+                m_key = "Unknown"
+                m_label = "មិនស្គាល់កាលបរិច្ឆេទ"
+
             rev = parse_sheet_num(r[13])
             prof = parse_sheet_num(r[19])
             kn = int(parse_sheet_num(r[9]))
             delivery = r[15].strip()
             loc = r[5].strip()
+            is_thai = ("thai" in delivery.lower() or "ថៃ" in loc)
 
-            total_orders += 1
-            total_rev += rev
-            total_prof += prof
-            total_kn += kn
+            # Customer identification by phone number or unique FB/Location
+            phone = r[6].strip().replace(" ", "").replace("-", "") if len(r) > 6 else ""
+            cust_id = phone if phone else f"{r[2].strip()}_{loc}"
+            is_repeat_customer = (cust_id in seen_customers)
+            seen_customers.add(cust_id)
 
-            if "thai" in delivery.lower() or "ថៃ" in loc:
-                thai_orders += 1
-            
-            delivery_counts[delivery] = delivery_counts.get(delivery, 0) + 1
+            if m_key not in monthly_data:
+                monthly_data[m_key] = {
+                    "label": m_label,
+                    "orders": 0,
+                    "rev": 0.0,
+                    "prof": 0.0,
+                    "kn": 0,
+                    "thai": 0,
+                    "cambodia": 0,
+                    "new_customers": 0,
+                    "repeat_customers": 0,
+                    "sellers": {}
+                }
 
-            if norm_s not in active_sellers:
-                active_sellers[norm_s] = {"orders": 0, "rev": 0.0, "profit": 0.0, "kn": 0}
-            active_sellers[norm_s]["orders"] += 1
-            active_sellers[norm_s]["rev"] += rev
-            active_sellers[norm_s]["profit"] += prof
-            active_sellers[norm_s]["kn"] += kn
+            m_obj = monthly_data[m_key]
+            m_obj["orders"] += 1
+            m_obj["rev"] += rev
+            m_obj["prof"] += prof
+            m_obj["kn"] += kn
+            if is_thai:
+                m_obj["thai"] += 1
+            else:
+                m_obj["cambodia"] += 1
 
-        thai_pct = (thai_orders / total_orders * 100) if total_orders else 0.0
+            if is_repeat_customer:
+                m_obj["repeat_customers"] += 1
+            else:
+                m_obj["new_customers"] += 1
+
+            if norm_s not in m_obj["sellers"]:
+                m_obj["sellers"][norm_s] = {"orders": 0, "rev": 0.0, "prof": 0.0, "kn": 0}
+            m_obj["sellers"][norm_s]["orders"] += 1
+            m_obj["sellers"][norm_s]["rev"] += rev
+            m_obj["sellers"][norm_s]["prof"] += prof
+            m_obj["sellers"][norm_s]["kn"] += kn
+
+        sorted_months = sorted([k for k in monthly_data.keys() if k != "Unknown"])
+        latest_month_key = sorted_months[-1] if sorted_months else None
 
         lines = [
-            "ទិន្នន័យជាក់ស្តែងផ្សាយផ្ទាល់ Real-Time ពី Bostar Group Google Sheets ៖",
-            f"• ចំនួនការកុម្ម៉ង់សរុប (សមាជិកសកម្ម ៣៨ នាក់) ៖ {total_orders:,} Orders",
-            f"• ចំណូលសរុប ៖ ${total_rev:,.2f}",
-            f"• ប្រាក់ចំណេញដុលសរុប ៖ ${total_prof:,.2f}",
-            f"• ចំនួនលក់ចេញ Kidney Pro (KN) សរុប ៖ {total_kn:,} កំប៉ុង",
-            f"• ទីផ្សារប្រទេសថៃ (Thai Orders) ៖ {thai_orders:,} Orders ({thai_pct:.1f}% នៃការបញ្ជាទិញសរុប)",
-            "\nលទ្ធផលលក់តាមសមាជិកសកម្មផ្លូវការរបស់ Bostar Group (Top Active Sellers) ៖"
+            "📊 ទិន្នន័យជាក់ស្តែងពី Google Sheets បែងចែកដាច់ដោយឡែកតាមខែនីមួយៗ និងបែងចែកតាមប្រភេទភ្ញៀវច្បាស់លាស់ ៖\n"
         ]
-        for idx, (s, st) in enumerate(sorted(active_sellers.items(), key=lambda x: x[1]["orders"], reverse=True)[:15], 1):
-            lines.append(f"  {idx}. {s} ៖ {st['orders']} Orders | KN: {st['kn']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f} | ចំណេញ: ${st['profit']:,.2f}")
+
+        if latest_month_key:
+            lm = monthly_data[latest_month_key]
+            thai_pct = (lm["thai"] / lm["orders"] * 100) if lm["orders"] else 0.0
+            kh_pct = (lm["cambodia"] / lm["orders"] * 100) if lm["orders"] else 0.0
+            new_pct = (lm["new_customers"] / lm["orders"] * 100) if lm["orders"] else 0.0
+            repeat_pct = (lm["repeat_customers"] / lm["orders"] * 100) if lm["orders"] else 0.0
+
+            lines.append(f"🔥 ទិន្នន័យខែចុងក្រោយបំផុត ({lm['label']}) ៖")
+            lines.append(f"• ចំនួនការកុម្ម៉ង់សរុប ៖ {lm['orders']:,} Orders")
+            lines.append(f"• ចំណូលខែនេះ ៖ ${lm['rev']:,.2f}")
+            lines.append(f"• ប្រាក់ចំណេញដុល ៖ ${lm['prof']:,.2f}")
+            lines.append(f"• ចំនួនលក់ Kidney Pro (KN) ៖ {lm['kn']:,} កំប៉ុង")
+            lines.append(f"\n👥 ការបែងចែកតាមប្រភេទភ្ញៀវ (Customer Segmentation) ក្នុង {lm['label']} ៖")
+            lines.append(f"• ភ្ញៀវថ្មី (New Customers) ៖ {lm['new_customers']:,} នាក់ ({new_pct:.1f}%)")
+            lines.append(f"• ភ្ញៀវចាស់ទិញឡើងវិញ (Repeat Customers) ៖ {lm['repeat_customers']:,} នាក់ ({repeat_pct:.1f}%) [គោលដៅ 30% សម្រេចបាន {repeat_pct:.1f}%]")
+            lines.append(f"• ភ្ញៀវនៅប្រទេសថៃ (Thai Diaspora) ៖ {lm['thai']:,} Orders ({thai_pct:.1f}%)")
+            lines.append(f"• ភ្ញៀវក្នុងប្រទេសកម្ពុជា (Domestic KH) ៖ {lm['cambodia']:,} Orders ({kh_pct:.1f}%)")
+            lines.append(f"\n🏆 អ្នកលក់ឆ្នើមប្រចាំ {lm['label']} ៖")
+            for rank, (s_name, st) in enumerate(sorted(lm["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True)[:5], 1):
+                lines.append(f"   {rank}. {s_name} ៖ {st['orders']} Orders | KN: {st['kn']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f}")
+            lines.append("")
+
+        lines.append("📅 តារាងបែងចែកតាមខែនីមួយៗ និងភ្ញៀវចាស់/ភ្ញៀវថ្មី (Monthly & Customer Tracking) ៖")
+        for mk in sorted_months:
+            m = monthly_data[mk]
+            top_s = sorted(m["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True)[0]
+            rep_pct = (m["repeat_customers"] / m["orders"] * 100) if m["orders"] else 0.0
+            lines.append(f"• {m['label']} ៖ {m['orders']:,} Orders | ចំណូល: ${m['rev']:,.2f} | ភ្ញៀវថ្មី: {m['new_customers']} | ភ្ញៀវចាស់: {m['repeat_customers']} ({rep_pct:.1f}%) | ថៃ: {m['thai']} | ខ្មែរ: {m['cambodia']}")
 
         result_text = "\n".join(lines)
         _sheet_cache["time"] = now
@@ -853,6 +906,23 @@ AESTHETIC_FORMATTING_RULES = """
    - បើសួរជាភាសាអង់គ្លេស៖ ត្រូវឆ្លើយជាភាសាអង់គ្លេសសុទ្ធសាធយ៉ាងស្ទាត់ជំនាញ (Professional English)។
    - ហាមដាច់ខាតការលាយតួអក្សរផ្សេងៗដូចជា អក្សរថៃ ចិន វៀតណាម ឬភាសាផ្សេងទៀតដែលគ្មានប្រភពច្បាស់លាស់។
    - រក្សាភាពស្អាតបាត ភ្លឺថ្លា និងសោភ័ណភាពនៃអក្សរ មិនឱ្យមានសញ្ញា ឬអក្សរចម្លែករញ៉េរញ៉ៃមកជាមួយជាដាច់ខាត!
+
+៩. បទបញ្ជាដាច់ខាតរឿងទិន្នន័យលក់៖ "គិតតាមខែនីមួយៗ ហាមបូកសរុបទាំងអស់ជាទិន្នន័យរួមឡើយ!" (Strict Monthly Segmentation)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ រាល់ពេលនិយាយ ឬធ្វើរបាយការណ៍អំពីទិន្នន័យលក់ ចរិយាត្រូវបង្ហាញដាច់ដោយឡែកតាមខែនីមួយៗ (Month-by-Month) ហាមបូកសរុបជាទិន្នន័យរួមតែមួយដាច់ខាត!
+
+១០. បទបញ្ជាដាច់ខាត៖ "ត្រូវបែងចែកតាមភ្ញៀវបានច្បាស់លាស់!" (Strict Customer Segmentation)៖
+   - ត្រូវបែងចែកដាច់ស្រឡះរវាង "ភ្ញៀវថ្មី (New Customers)" និង "ភ្ញៀវចាស់ទិញឡើងវិញ (Repeat Customers)" តាមដានភាគរយឱ្យដល់គោលដៅ ៣០%។
+   - ត្រូវបែងចែកទីតាំងច្បាស់លាស់រវាង "ភ្ញៀវនៅប្រទេសថៃ (Thai Diaspora)" និង "ភ្ញៀវក្នុងប្រទេសកម្ពុជា (Domestic)" ក្នុងខែនីមួយៗ! (Strict Monthly Segmentation - Never Combined Total)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ រាល់ពេលនិយាយ ឬធ្វើរបាយការណ៍អំពីទិន្នន័យលក់ ចរិយាត្រូវបង្ហាញដាច់ដោយឡែកតាមខែនីមួយៗ (Month-by-Month: ខែ ១, ខែ ២, ខែ ៣, ... ខែ ១០...)។
+   - ដាច់ខាត ហាមបូកសរុបលេខទាំងអស់បញ្ចូលគ្នាជាតួលេខរួមតែមួយ (Combined Total) ដូចជា "៨,៥០០ Orders ឬ ១.៣៩ លានដុល្លារ" ទៀតជាដាច់ខាត!
+   - ត្រូវបង្ហាញតាមខែដែលគេសួរ ឬបង្ហាញតាមខែជាក់លាក់ (ឧ. ខែ ១០/២០២៦ លក់បានប៉ុន្មាន, ខែ ០៩/២០២៦ លក់បានប៉ុន្មាន) ដើម្បីឱ្យមេ និងថ្នាក់ដឹកនាំងាយស្រួលវាយតម្លៃការរីកចម្រើនជាក់ស្តែងប្រចាំខែ!
+
+១១. បទបញ្ជាការពារទិន្នន័យច្រឡំ៖ "ត្រូវពិនិត្យឈ្មោះមុនឆ្លើយតបជានិច្ច!" (Strict Identity Verification & Anti-Confusion Protocol)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមការពារទិន្នន័យច្រឡំ សូមពិនិត្យឈ្មោះមុនឆ្លើយតប!"
+   - មុនពេលឆ្លើយតប ឬផ្ដល់ទិន្នន័យអ្វីមួយ ចរិយាត្រូវផ្ទៀងផ្ទាត់អត្តសញ្ញាណ ឈ្មោះ និងតួនាទីរបស់អ្នកសួរឱ្យច្បាស់ ១០០% ជាមុនសិន។
+   - បើជា "មេ" (បង ហែម ចន្ធី)៖ ត្រូវឆ្លើយជូនមេដោយហៅ "មេ" និងផ្ដល់របាយការណ៍យុទ្ធសាស្ត្រពេញលេញ។
+   - បើជាសមាជិកក្រុម ឬ Manager៖ ត្រូវផ្ទៀងផ្ទាត់ឈ្មោះរបស់គាត់ឱ្យចំ (ឧ. អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា, លោក ហ៊ួរ យ៉ារិទ្ធ, បង ស៊ីម វត្តី...) និងផ្ដល់តែទិន្នន័យត្រឹមត្រូវដែលទាក់ទងនឹងគាត់ ឬក្រុមរបស់គាត់ប៉ុណ្ណោះ។
+   - ដាច់ខាត ហាមឆ្លើយទិន្នន័យច្រឡំមនុស្ស ហាមឆ្លើយទិន្នន័យច្រឡំក្រុម និងហាមហៅឈ្មោះខុសជាដាច់ខាត!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
@@ -920,7 +990,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 • ឈ្មោះ៖ {user_info['display_name']}
 • តួនាទី៖ {user_info['role']}
 • របៀបហៅ (Salutation)៖ ត្រូវហៅគាត់ថា "មេ" ជានិច្ច គ្រប់ឃ្លា និងគ្រប់ចម្លើយ (ឧទាហរណ៍៖ ចាសមេ!, ជម្រាបសួរមេ!, ចាសមេ...)!
-• សិទ្ធិហិរញ្ញវត្ថុ៖ មេមានសិទ្ធិមើលព័ត៌មានលម្អិតទាំងអស់ពី Google Sheets (រួមទាំងចំណូលសរុប ថ្លៃដើម ថ្លៃដឹក ថ្លៃប៊ូត Ads និងប្រាក់ចំណេញសុទ្ធ)!
+• ពិនិត្យឈ្មោះមុនឆ្លើយតប (Pre-Flight Identity Verification)៖ ម្នាក់នេះគឺជា "មេ" ផ្ទាល់ខ្លួន មិនត្រូវច្រឡំជាមួយសមាជិក ឬអ្នកផ្សេងឡើយ!
+• សិទ្ធិហិរញ្ញវត្ថុ៖ មេមានសិទ្ធិមើលព័ត៌មានលម្អិតទាំងអស់ពី Google Sheets (រួមទាំងចំណូលតាមខែ ថ្លៃដើម ថ្លៃដឹក ថ្លៃប៊ូត Ads និងប្រាក់ចំណេញសុទ្ធ)!
 """
     else:
         addressing_instruction = f"""
@@ -928,6 +999,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 • ឈ្មោះពិត៖ {user_info['display_name']}
 • តួនាទីក្នុងក្រុម៖ {user_info['role']}
 • របៀបហៅ (Salutation)៖ ត្រូវហៅគាត់ថា "{user_info['salutation']}" ជានិច្ច!
+• ពិនិត្យឈ្មោះមុនឆ្លើយតបដាច់ខាត (Pre-Flight Identity Check)៖ មុនឆ្លើយតប ត្រូវផ្ទៀងផ្ទាត់ឈ្មោះរបស់គាត់ឱ្យចំៗ គឺ "{user_info['display_name']}" (ហាមច្រឡំឈ្មោះអ្នកផ្សេង ហាមហៅច្រឡំជាមេ ឬច្រឡំតួនាទីជាដាច់ខាត)!
 • ច្បាប់ដាច់ខាត៖ ហាមហៅគាត់ថា "មេ" ជាដាច់ខាត! ពាក្យថា "មេ" គឺសម្រាប់តែម្ចាស់របស់អ្នក (បង ហែម ចន្ធី) តែម្នាក់គត់!
 • ការការពារទិន្នន័យសម្ងាត់ (Strict Confidentiality)៖
   - បើគាត់សួរពីរឿងលក់ អាចប្រាប់ត្រឹមចំនួនលក់ផ្ទាល់ខ្លួនរបស់គាត់ ឬចំនួនកម្ម៉ង់ទូទៅបាន។
