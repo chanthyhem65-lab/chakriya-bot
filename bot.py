@@ -637,9 +637,9 @@ def is_owner_user(user) -> bool:
         return True
 
     # 4. Profile name verification
-    first_name = (user.first_name or "").lower()
-    last_name = (user.last_name or "").lower()
-    username = (user.username or "").lower()
+    first_name = (getattr(user, "first_name", "") or "").lower()
+    last_name = (getattr(user, "last_name", "") or "").lower()
+    username = (getattr(user, "username", "") or "").lower()
     full_info = f"{first_name} {last_name} {username}"
 
     matches = (
@@ -789,6 +789,7 @@ def enforce_salutation_safety(text: str, is_boss: bool, salutation: str) -> str:
     """Strict safety guardrail:
     Per Boss mandate: Never call ANYONE 'មេ' except Hem Chanthy (បង ហែម ចន្ធី)!
     If the recipient is NOT the Boss, strip or replace every accidental 'មេ' with their proper salutation.
+    Handles contiguous Khmer script without spaces (e.g. ដែរមេ, ទេមេ, ណា៎មេ...).
     """
     if not text:
         return ""
@@ -797,17 +798,35 @@ def enforce_salutation_safety(text: str, is_boss: bool, salutation: str) -> str:
 
     target = salutation if salutation else "បង"
     res = text
-    
-    # 1. Replace common combined phrases
-    for phrase in ["ចាសមេ", "បាទមេ", "ជម្រាបសួរមេ", "ណា៎មេ", "ជូនមេ", "ឱ្យមេ", "របស់មេ", "ពីមេ", "នឹងមេ", "ពរមេ", "ជាមួយមេ", "ជួយមេ"]:
-        res = res.replace(phrase, phrase[:-2] + target)
 
-    # 2. Replace standalone 'មេ'
-    res = re.sub(r'([^\w]|^)មេ([^\w]|$)', rf'\g<1>{target}\g<2>', res)
-    res = re.sub(r'([^\w]|^)មេ([^\w]|$)', rf'\g<1>{target}\g<2>', res)
+    # Protect safe Khmer compound words where 'មេ' is part of a standard dictionary word
+    safe_compounds = [
+        "មេឃ", "មេដៃ", "មេធាវី", "មេដែក", "មេដឹកនាំ", "មេដាយ",
+        "មេរោគ", "មេរៀន", "មេត្រី", "មេទ័ព", "មេម៉ាយ", "មេបា", "មេកានិច"
+    ]
+    for i, comp in enumerate(safe_compounds):
+        res = res.replace(comp, f"__SAFE_KHMER_COMP_{i}__")
 
-    # 3. Handle direct verb attachments in Khmer (e.g. មេមាន, មេអាច, មេចង់...)
-    res = re.sub(r'មេ(មាន|អាច|ចង់|ត្រូវការ|បាន|ទៅ|មក|ជួយ|សម្រាក)', rf'{target}\g<1>', res)
+    # 1. Replace contiguous Khmer ending phrases where 'មេ' is the salutation
+    endings = [
+        "ដែរមេ", "ទេមេ", "ណា៎មេ", "ណាមេ", "ចាសមេ", "ចាស៎មេ", "បាទមេ",
+        "ជូនមេ", "ឱ្យមេ", "ឲ្យមេ", "របស់មេ", "ពីមេ", "នឹងមេ", "ពរមេ",
+        "ជាមួយមេ", "ជួយមេ", "ផងមេ", "អរគុណមេ", "ជំរាបសួរមេ", "ជម្រាបសួរមេ"
+    ]
+    for e in endings:
+        res = res.replace(e, e[:-2] + target)
+
+    # 2. Replace 'មេ' attached to verbs/actions in Khmer
+    res = re.sub(r'មេ(មាន|អាច|ចង់|ត្រូវការ|បាន|ទៅ|មក|ជួយ|សម្រាក|ពិនិត្យ|គិត|សួរ|ប្រាប់|បញ្ជា|សម្រេច)', rf'{target}\g<1>', res)
+
+    # 3. Replace standalone or punctuation/emoji-attached 'មេ'
+    res = re.sub(r'មេ([!?,.:;~ ៖៕\s🥰🌸🫶💖✨🙏🏼😊❤️]|\b|$)', rf'{target}\g<1>', res)
+    res = re.sub(r'(^|[\s!?,.:;~ ៖៕])មេ', rf'\g<1>{target}', res)
+
+    # Restore protected safe compounds
+    for i, comp in enumerate(safe_compounds):
+        res = res.replace(f"__SAFE_KHMER_COMP_{i}__", comp)
+
     return res
 
 async def generate_voice_reply(text: str) -> io.BytesIO | None:
@@ -1274,6 +1293,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                 )
                 if response and hasattr(response, "text") and response.text:
                     clean_reply = clean_text_formatting(response.text)
+                    clean_reply = enforce_salutation_safety(clean_reply, is_boss, user_info["salutation"])
                     if photo_bytes:
                         history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}"
                     elif audio_bytes:
@@ -2081,6 +2101,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
     user_info = get_user_identity_info(user, text)
+    is_boss = user_info["is_boss"]
 
     typing_task = asyncio.create_task(keep_typing(update.message.chat))
 
@@ -2146,14 +2167,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 sender_label = f"{official_name}{u_tag} [{u_role}] (ID: {user.id})"
 
                 # 2. Concise question summary
+                media_cap = update.message.caption or ""
                 if has_photo:
-                    q_summary = f"📷 ផ្ញើរូបភាពមក៖ {caption_text if caption_text else 'គ្មានចំណងជើង'}"
+                    q_summary = f"📷 ផ្ញើរូបភាពមក៖ {media_cap if media_cap else 'គ្មានចំណងជើង'}"
                 elif has_voice:
                     q_summary = f"🎙️ ផ្ញើសារសំឡេង (Voice Note)៖ {text if text else 'សារសំឡេង'}"
                 elif has_audio:
                     q_summary = "🎵 ផ្ញើឯកសារសំឡេង (Audio)"
                 elif has_video:
-                    q_summary = f"🎬 ផ្ញើវីដេអូមក៖ {caption_text if caption_text else 'វីដេអូ'}"
+                    q_summary = f"🎬 ផ្ញើវីដេអូមក៖ {media_cap if media_cap else 'វីដេអូ'}"
                 elif has_document:
                     doc_name = update.message.document.file_name or "Document"
                     q_summary = f"📁 ផ្ញើឯកសារ៖ {doc_name}"
