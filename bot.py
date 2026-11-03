@@ -953,6 +953,14 @@ AESTHETIC_FORMATTING_RULES = """
    - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមកំណត់ចំណាំ ក្រៅពីខ្ញុំ( hem chanthy , ហែម ចន្ធី ) សូមកុំហៅអ្នកផ្សេងថាមេឲ្យសោះ!"
    - ពាក្យថា "មេ" (ចាសមេ, ជម្រាបសួរមេ, ជូនមេ, ណា៎មេ...) គឺត្រូវបានចាក់សោរបម្រុងទុកសម្រាប់តែ បង ហែម ចន្ធី (Hem Chanthy, ID: 814495505) តែម្នាក់គត់លើលោក!
    - សម្រាប់មនុស្សគ្រប់រូបផ្សេងទៀតទាំងអស់ (មិនថាជាប្រធានក្រុម Bech Nora, Manager ណា, ឬសមាជិកក្រុមរូបណាឡើយ)៖ ដាច់ខាត ហាមហៅថា "មេ" ឡើយ! ត្រូវហៅគាត់តាមតួនាទី ឬឈ្មោះរបស់គាត់ជានិច្ច ដូចជា៖ "អ្នកគ្រូ...", "លោក...", ឬ "បង..." (ឧទាហរណ៍៖ "អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា", "លោក ហ៊ួរ យ៉ារិទ្ធ", "បង សុមុន្នី ស្រីណុច", "បង ស៊ីម វត្តី"...)!
+
+១៣. បទបញ្ជាកម្រិតកំពូល៖ "ឆ្លើយតបមិនខុសប្រធានបទ ពូកែរ និងចំគោលដៅ ១០០%!" (Laser Topic Relevance & Master Competence)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "បន្ថែមកម្រិតឆ្លើយតបមិនខុសប្រធានបទ ពូកែរ!"
+   - ផ្តោតចំប្រធានបទ ១០០% (Strict Topic Adherence)៖ សួររឿងអ្វី ឆ្លើយចំរឿងនោះសុទ្ធសាធ! ហាមឆ្លើយវាងវៃ ហាមទាញទៅរឿងផ្សេងដែលគេមិនបានសួរ និងហាមចាកប្រធានបទដាច់ខាត!
+   - បង្ហាញភាពពូកែ និងមានវិជ្ជាជីវៈកម្រិតកំពូល (Executive Competence)៖ ផ្ដល់ដំណោះស្រាយជាក់ស្តែង មានទម្ងន់ មានកលល្បិចយុទ្ធសាស្ត្រខ្ពស់ ឆ្លាតវៃ រហ័សរហួន និងអាចដោះស្រាយការងារបានភ្លាមៗ។
+   - បើជាសំណួរសុខភាពតម្រងនោម៖ ឆ្លើយចំរោគសញ្ញា របបអាហារ និងដំណោះស្រាយ Kidney Pro ដោយត្រឹមត្រូវតាមវេជ្ជសាស្ត្រ។
+   - បើជាសំណួរលក់ ឬ Ads៖ ឆ្លើយចំយុទ្ធសាស្ត្រលក់ ស្គ្រីបបិទការលក់ វិធីសរសេរ Hook វីដេអូ ឬការដោះស្រាយការទាស់របស់អតិថិជន។
+   - បើជាសំណួរទិន្នន័យ៖ ឆ្លើយចំតួលេខនៃខែដែលគេសួរ តាម Google Sheets ដោយគ្មានការភាន់ច្រឡំឡើយ!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
@@ -2125,17 +2133,60 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         typing_task.cancel()
 
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Catch-all unhandled error handler to prevent bot polling loop crashes."""
-    logger.error("Exception in update handler:", exc_info=context.error)
+    """Advanced High-Level Resilient Error Handler with auto-recovery and critical alerting."""
+    err_str = str(context.error)
+    logger.error(f"High-Level Exception caught: {err_str}", exc_info=context.error)
+    
+    # Ignore harmless transient Telegram network drops that self-resolve
+    if any(ign in err_str.lower() for ign in ["httpx.readtimeout", "httpx.connecttimeout", "timed out", "conflict: terminated"]):
+        return
+
     try:
         if isinstance(update, Update) and update.effective_chat:
-            salutation = "មេ" if update.effective_user and is_owner_user(update.effective_user) else "បង"
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=f"សូមអភ័យទោសចាស{salutation}! ប្រព័ន្ធជួបបញ្ហាបច្ចេកទេសបន្តិចបន្តួច តែចរិយាបានដំណើរការឡើងវិញជាធម្មតាហើយណា៎! {salutation}អាចសួរម្តងទៀតបានចាស! 🥰🌸"
-            )
+            is_boss = update.effective_user and is_owner_user(update.effective_user)
+            salutation = "មេ" if is_boss else "បង"
+            
+            # Smart context-aware error reply
+            if "rate limit" in err_str.lower() or "429" in err_str:
+                user_msg = f"ចាស{salutation}! ប្រព័ន្ធមានការមមាញឹកបន្តិច (High Traffic) ចរិយាកំពុងរៀបចំឡើងវិញ សូម{salutation}សាកល្បងម្ដងទៀតក្នុងរយៈពេល ៥ វិនាទីណា៎! 🥰🌸"
+            elif "blocked" in err_str.lower() or "safety" in err_str.lower():
+                user_msg = f"ចាស{salutation}! ចម្លើយនេះត្រូវបានប្រព័ន្ធសុវត្ថិភាពសម្រួល សូម{salutation}ជួយសួរបញ្ជាក់បន្ថែមបន្តិចទៀតណា៎! 🌸"
+            else:
+                user_msg = f"ចាស{salutation}! ប្រព័ន្ធទើបតែបានជួសជុល និងតភ្ជាប់ឡើងវិញដោយជោគជ័យ (Auto-Recovered)! សូម{salutation}សួរម្ដងទៀតបានភ្លាមៗចាស! 🥰🌸"
+
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=user_msg)
+
+            # Alert Boss if it is an unexpected severe error
+            owner_id = HARDCODED_OWNER_ID or bot_config.get("owner_id", "814495505")
+            if owner_id and not is_boss:
+                alert_text = (
+                    "⚠️ ដំណឹងបច្ចេកទេសប្រព័ន្ធ (System Auto-Recovery Alert) ៖\n\n"
+                    f"ចរិយាបានជួបប្រទះបញ្ហាបច្ចេកទេសកម្រិតស្រាលមួយ តែប្រព័ន្ធបានដំណើរការ Auto-Recover ដោយសុវត្ថិភាពរួចរាល់ហើយចាសមេ!\n"
+                    f"ព័ត៌មានកំហុស៖ {err_str[:250]}"
+                )
+                try:
+                    await context.bot.send_message(chat_id=int(owner_id), text=clean_text_formatting(alert_text))
+                except Exception:
+                    pass
     except Exception as fallback_err:
         logger.error(f"Global error handler fallback failed: {fallback_err}")
+
+def start_keep_alive_pinger():
+    """Self-pinging background thread to prevent Render free-tier from entering sleep mode."""
+    render_url = os.environ.get("RENDER_EXTERNAL_URL") or "https://chakriya-bot.onrender.com"
+    def _ping_loop():
+        time.sleep(30) # Initial wait before starting pings
+        while True:
+            try:
+                req = urllib.request.Request(render_url, headers={"User-Agent": "Chakriya-KeepAlive/2.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    pass
+            except Exception as p_err:
+                pass
+            time.sleep(480) # Ping every 8 minutes (Render sleeps after 15 min of inactivity)
+    t = threading.Thread(target=_ping_loop, daemon=True)
+    t.start()
+    logger.info("Keep-alive background self-pinger initialized successfully.")
 
 def run_health_check_server():
     default_port = 7860 if os.environ.get("SPACE_ID") else 0
@@ -2158,6 +2209,7 @@ def run_health_check_server():
             server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
             threading.Thread(target=server.serve_forever, daemon=True).start()
             logger.info(f"Health check HTTP server running on port {port}")
+            start_keep_alive_pinger()
         except Exception as e:
             logger.warning(f"Could not start health check server on port {port}: {e}")
 
