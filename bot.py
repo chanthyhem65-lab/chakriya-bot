@@ -59,7 +59,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
+AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview", "gemini-3.6-flash"]
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
@@ -404,12 +404,32 @@ def parse_sheet_num(val: str) -> float:
     except ValueError:
         return 0.0
 
+_sheet_is_updating = False
+
+def background_sheet_refresh():
+    global _sheet_is_updating
+    if _sheet_is_updating:
+        return
+    _sheet_is_updating = True
+    threading.Thread(target=_do_fetch_sheet_data_sync, daemon=True).start()
+
 def fetch_live_sales_data() -> str:
     now = time.time()
-    # High-Speed in-memory cache: serve instantly within 300s (5 minutes)
-    if now - _sheet_cache["time"] < 300 and _sheet_cache["content"]:
+    # Zero-Latency RAM Cache: Serve instantly (<0.001s) within 300s
+    if _sheet_cache["content"] and (now - _sheet_cache["time"] < 300):
         return _sheet_cache["content"]
 
+    # If cache exists but expired, return instantly without blocking and refresh in background!
+    if _sheet_cache["content"]:
+        background_sheet_refresh()
+        return _sheet_cache["content"]
+
+    # Cold startup fallback
+    return _do_fetch_sheet_data_sync()
+
+def _do_fetch_sheet_data_sync() -> str:
+    global _sheet_is_updating
+    now = time.time()
     try:
         req = urllib.request.Request(BOSTAR_SHEET_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
         data = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
@@ -547,6 +567,8 @@ def fetch_live_sales_data() -> str:
     except Exception as e:
         logger.error(f"Error fetching Bostar sheet: {e}")
         return _sheet_cache.get("content") or "មិនអាចទាញទិន្នន័យពី Bostar Google Sheets បាននៅពេលនេះទេ។"
+    finally:
+        _sheet_is_updating = False
 
 def load_config() -> dict:
     if CONFIG_FILE.exists():
@@ -789,24 +811,30 @@ def enforce_salutation_safety(text: str, is_boss: bool, salutation: str) -> str:
     return res
 
 async def generate_voice_reply(text: str) -> io.BytesIO | None:
-    """Generates natural sweet Khmer neural speech using Microsoft Sreymom voice."""
+    """Generates ultra-high quality, natural sweet Khmer neural speech using tuned Microsoft Sreymom voice."""
     try:
         clean_speech = re.sub(r'https?://\S+', '', text)
-        # Strip emojis while preserving Khmer, English, digits, currency and punctuation
+        clean_speech = re.sub(r'[\u0E00-\u0E7F]+', '', clean_speech)
+        clean_speech = clean_speech.replace("**", "").replace("*", "")
         clean_speech = re.sub(r'[^\w\s\u1780-\u17FF$%,.:;!?៖៕\-\(\)/+]', '', clean_speech)
         clean_speech = re.sub(r'\s+', ' ', clean_speech).strip()
-        
-        # Allow complete speech up to 1500 characters, never cutting mid-sentence
-        if len(clean_speech) > 1500:
-            cut_point = clean_speech[:1500].rfind("។")
+
+        if len(clean_speech) > 1200:
+            cut_point = clean_speech[:1200].rfind("។")
             if cut_point == -1:
-                cut_point = clean_speech[:1500].rfind("\n")
-            if cut_point > 400:
-                clean_speech = clean_speech[:cut_point] + "។ ព័ត៌មានលម្អិតបន្ថែម មេអាចមើលក្នុងសារអក្សរខាងលើបានណា៎មេ!"
+                cut_point = clean_speech[:1200].rfind(" ")
+            if cut_point > 300:
+                clean_speech = clean_speech[:cut_point] + "។ ព័ត៌មានបន្ថែម សូមពិនិត្យក្នុងសារអក្សរចាស!"
 
         if not clean_speech:
             return None
-        communicate = edge_tts.Communicate(clean_speech, "km-KH-SreymomNeural")
+
+        communicate = edge_tts.Communicate(
+            clean_speech,
+            voice="km-KH-SreymomNeural",
+            rate="+2%",
+            pitch="+2Hz"
+        )
         buf = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
@@ -815,7 +843,7 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         buf.name = "chakriya_voice.mp3"
         return buf
     except Exception as e:
-        logger.warning(f"Error in TTS: {e}")
+        logger.warning(f"Error in enhanced TTS: {e}")
         return None
 
 def load_all_memories() -> dict:
@@ -962,12 +990,29 @@ AESTHETIC_FORMATTING_RULES = """
    - បើជាសំណួរសុខភាពតម្រងនោម៖ ឆ្លើយចំរោគសញ្ញា របបអាហារ និងដំណោះស្រាយ Kidney Pro ដោយត្រឹមត្រូវតាមវេជ្ជសាស្ត្រ។
    - បើជាសំណួរលក់ ឬ Ads៖ ឆ្លើយចំយុទ្ធសាស្ត្រលក់ ស្គ្រីបបិទការលក់ វិធីសរសេរ Hook វីដេអូ ឬការដោះស្រាយការទាស់របស់អតិថិជន។
    - បើជាសំណួរទិន្នន័យ៖ ឆ្លើយចំតួលេខនៃខែដែលគេសួរ តាម Google Sheets ដោយគ្មានការភាន់ច្រឡំឡើយ!
+
+១៤. បទបញ្ជាបែងចែករវាង "ឆាតផ្ទាល់ខ្លួន" និង "ឆាតក្នុងក្រុម" (Private Chat vs Group Chat Awareness)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមបែងចែកឱ្យ ចរិយា ដឹងថា សារមួយណាឆាតផ្ទាល់ សារណាឆាតក្នុងក្រុប!"
+   - ពេលឆាតផ្ទាល់ខ្លួន (1-on-1 Direct Chat)៖
+     * ដឹងច្បាស់ថាកំពុងសន្ទនាផ្ទាល់ខ្លួនមួយទល់នឹងមួយ។
+     * ឆ្លើយតបប្រកបដោយភាពកក់ក្តៅ រួសរាយ រាក់ទាក់ ស៊ីជម្រៅ និងផ្តល់ព័ត៌មានពេញលេញតាមតម្រូវការរបស់អ្នកសួរ។
+   - ពេលឆាតក្នុងក្រុម (Group / Supergroup Chat)៖
+     * ដឹងច្បាស់ថាកំពុងស្ថិតក្នុងក្រុមធំដែលមានមនុស្សជាច្រើនមើលឃើញ។
+     * ឆ្លើយតបខ្លី ខ្លឹម ចំៗ ថ្លៃថ្នូរ រហ័ស និងមិនរៀបរាប់ព័ត៌មានវែងអន្លាយដែលនាំឱ្យចង្អៀតអេក្រង់ក្រុមឡើយ។
+     * រក្សាការសម្ងាត់ហិរញ្ញវត្ថុរបស់មេ និងក្រុមហ៊ុន ១០០% នៅក្នុងក្រុមជាដាច់ខាត!
 """
 
-def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
+def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
     user_id = str(user.id)
     user_info = get_user_identity_info(user, user_message)
     is_boss = user_info["is_boss"]
+    is_group_chat = (chat_type in ["group", "supergroup"])
+    chat_context_note = f"""
+### បរិបទទីតាំងនៃការឆាត (Chat Environment Context)៖
+• ប្រភេទនៃការសន្ទនា៖ {"👥 ឆាតក្នុងក្រុម (Group Chat)" if is_group_chat else "💬 ឆាតផ្ទាល់ខ្លួន (1-on-1 Direct Chat)"}
+• ការយល់ដឹងអំពីបរិបទ៖
+  - {"សារនេះកំពុងស្ថិតនៅក្នុង Group ដែលមានសមាជិកច្រើន ត្រូវឆ្លើយតបយ៉ាងខ្លី ខ្លឹម ចំៗ ច្បាស់លាស់ និងរក្សាភាពថ្លៃថ្នូរជាក្រុម!" if is_group_chat else "សារនេះជាការសន្ទនាផ្ទាល់ខ្លួនមួយទល់នឹងមួយ (Direct Message) អាចឆ្លើយតបយ៉ាងកក់ក្តៅ លម្អិត និងស៊ីជម្រៅជូនគាត់បានពេញលេញ!"}
+"""
 
     # 1. Check for memory learning in background thread (Zero latency to user reply)
     threading.Thread(target=check_and_extract_memory, args=(user_id, user_message), daemon=True).start()
@@ -1077,6 +1122,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 {memories_text}
 
 {sheet_connection_knowledge}
+
+{chat_context_note}
 
 {AESTHETIC_FORMATTING_RULES}
 
@@ -2050,7 +2097,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             video_mime,
             doc_bytes,
             doc_mime,
-            photo_mime
+            photo_mime,
+            chat_type
         )
         formatted_reply = clean_text_formatting(reply)
         formatted_reply = enforce_salutation_safety(formatted_reply, is_boss, user_info["salutation"])
@@ -2184,7 +2232,7 @@ def start_keep_alive_pinger():
                     pass
             except Exception as p_err:
                 pass
-            time.sleep(480) # Ping every 8 minutes (Render sleeps after 15 min of inactivity)
+            time.sleep(240) # Ping every 4 minutes (Prevents Render cold start sleep 100%)
     t = threading.Thread(target=_ping_loop, daemon=True)
     t.start()
     logger.info("Keep-alive background self-pinger initialized successfully.")
@@ -2216,6 +2264,7 @@ def run_health_check_server():
 
 def main():
     run_health_check_server()
+    background_sheet_refresh() # Pre-warm Google Sheets cache for instant response
     print("-----------------------------------------------------------------------------------------")
     print("  Chakriya AI Bot (v9.0 Supreme Peak Evolution) Starting...")
     print("-----------------------------------------------------------------------------------------")
