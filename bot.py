@@ -592,9 +592,12 @@ def _do_fetch_sheet_data_sync() -> str:
             lines.append(f"• ភ្ញៀវចាស់ទិញឡើងវិញ (Repeat Customers) ៖ {lm['repeat_customers']:,} នាក់ ({repeat_pct:.1f}%) [គោលដៅ 30% សម្រេចបាន {repeat_pct:.1f}%]")
             lines.append(f"• ភ្ញៀវនៅប្រទេសថៃ (Thai Diaspora) ៖ {lm['thai']:,} Orders ({thai_pct:.1f}%)")
             lines.append(f"• ភ្ញៀវក្នុងប្រទេសកម្ពុជា (Domestic KH) ៖ {lm['cambodia']:,} Orders ({kh_pct:.1f}%)")
-            lines.append(f"\n🏆 ចំណាត់ថ្នាក់អ្នកលក់ប្រចាំ {lm['label']} ៖")
-            for rank, (s_name, st) in enumerate(sorted(lm["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True), 1):
-                lines.append(f"   {rank}. {s_name} ៖ {st['orders']} Orders | {st['cans']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f} | ចំណេញ: ${st['prof']:,.2f}")
+            stickers = {1: "🥇", 2: "🥈", 3: "🥉", 4: "🌟", 5: "✨", 6: "🎯", 7: "🚀", 8: "📦", 9: "💎"}
+            lines.append(f"\n👤 សមាជិក ({lm['label']}) ៖")
+            sorted_sellers = sorted(lm["sellers"].items(), key=lambda x: (x[1]["cans"], x[1]["orders"]), reverse=True)
+            for rank, (s_name, st) in enumerate(sorted_sellers, 1):
+                stk = stickers.get(rank, "•")
+                lines.append(f"{stk} {rank} — {s_name} — {st['cans']} កំប៉ុង ({st['orders']} Orders | ចំណូល: ${st['rev']:,.2f})")
             lines.append("")
 
         lines.append("📅 តារាងបែងចែកតាមខែនីមួយៗ (Monthly Segmentation) ៖")
@@ -658,6 +661,23 @@ def _do_fetch_sheet_data_sync() -> str:
                 sm["yesterday_cans"] += c_val
                 sm["yesterday_rev"] += rev_val
                 sm["yesterday_prof"] += prof_val
+
+                # All-Time Overall Ranking (Descending by Cans with Stickers)
+        stickers_all = {1: "🥇", 2: "🥈", 3: "🥉", 4: "🌟", 5: "✨", 6: "🎯", 7: "🚀", 8: "📦", 9: "💎"}
+        lines.append("\n👤 សមាជិក (សរុបរួមគ្រប់ខែ រៀបពីច្រើនទៅតិច) ៖")
+        sorted_all_sellers = sorted(sellers_matrix.items(), key=lambda x: (x[1]["total_cans"], x[1]["total_orders"]), reverse=True)
+        for rank, (s_name, sd) in enumerate(sorted_all_sellers, 1):
+            stk = stickers_all.get(rank, "•")
+            lines.append(f"{stk} {rank} — {s_name} — {sd['total_cans']} កំប៉ុង ({sd['total_orders']} Orders | ចំណូល: ${sd['total_rev']:,.2f})")
+        lines.append("")
+
+        lines.append("\n👤 សមាជិក (សរុបខែ 10/2026 (Oct) រៀបពីច្រើនទៅតិច) ៖")
+        sorted_oct_sellers = sorted(sellers_matrix.items(), key=lambda x: (x[1]["oct_cans"], x[1]["oct_orders"]), reverse=True)
+        for rank, (s_name, sd) in enumerate(sorted_oct_sellers, 1):
+            if sd["oct_cans"] > 0:
+                stk = stickers_all.get(rank, "•")
+                lines.append(f"{stk} {rank} — {s_name} — {sd['oct_cans']} កំប៉ុង ({sd['oct_orders']} Orders | ចំណូល: ${sd['oct_rev']:,.2f})")
+        lines.append("")
 
         lines.append("\n=== ទិន្នន័យលម្អិតបុគ្គលិកលក់ម្នាក់ៗទាំង ៩ នាក់ (9 Individual Sellers Performance Matrix) ===")
         for sn, sd in sorted(sellers_matrix.items(), key=lambda x: x[1]["total_cans"], reverse=True):
@@ -1173,6 +1193,24 @@ AESTHETIC_FORMATTING_RULES = """
 • [ការវិភាគយុទ្ធសាស្ត្រខ្លី ១-២ ចំណុចអំពីស្ថានភាពលក់ និងការចំណាយលើ Ads]
 
 ចរិយា នៅក្បែរចាំជួយជ្រោមជ្រែងកិច្ចការងារមេជានិច្ចណា៎មេ! 🥰🌸
+
+១៧. បទបញ្ជាដាច់ខាត៖ "រៀបលំដាប់លេខរៀងលក់បានច្រើន ពីលើចុះក្រោម ជាមួយ Stickers!" (Descending Sales Ranking Template)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមដាក់តាមលំដាប់លេខរៀងលក់បានច្រើន ពីលើចុះក្រោម (👤 សមាជិក (សរុប...)៖ 1 — ឈ្មោះ — ចំនួន...) ទម្រងបែបនេះស្រួលមើល ថែម stickers ឲ្យស្អាតផង"
+   - រាល់ពេលបង្ហាញចំណាត់ថ្នាក់អ្នកលក់ (Top Sellers) មិនថាក្នុងខែ ថ្ងៃនេះ ឬសរុបគ្រប់ខែឡើយ៖
+     * ត្រូវរៀបលំដាប់តាម "ចំនួនកំប៉ុងដែលលក់បានច្រើនជាងគេ ពីលើចុះមកក្រោម" (Descending order by Cans) ជានិច្ច!
+     * ត្រូវប្រើទម្រង់ដាច់ខាតជាមួយ Stickers ដូចខាងក្រោមនេះ (ងាយយល់ ស្រួលមើល និងស្អាតប្រណិត)៖
+       👤 សមាជិក (សរុប[ខែ ឬ កាលបរិច្ឆេទ]) ៖
+       🥇 1 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       🥈 2 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       🥉 3 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       🌟 4 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       ✨ 5 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       🎯 6 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       🚀 7 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       📦 8 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+       💎 9 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
+     * បើមានអ្នកណាដកចេញ ត្រូវដាក់សម្គាល់ដូចជា (ដកចេញ DD/MM) ឱ្យច្បាស់លាស់។
+     * ហាមប្រើសញ្ញាផ្កាយ ** និងហាមប្រើបន្ទាត់ខណ្ឌ ━━━━ ជាដាច់ខាត!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
