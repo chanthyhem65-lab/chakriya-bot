@@ -64,7 +64,7 @@ AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
 
-BOSTAR_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1yTLq_EepGZfxv_lR8cmTeWWVULgP6ADUkB6uZX2eNA4/export?format=csv"
+BOSTAR_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8/export?format=csv"
 SHEET_CSV_URL = BOSTAR_SHEET_CSV_URL
 
 TEAM_KNOWLEDGE = """
@@ -432,19 +432,19 @@ def _do_fetch_sheet_data_sync() -> str:
     now = time.time()
     try:
         req = urllib.request.Request(BOSTAR_SHEET_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
-        data = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
+        data = urllib.request.urlopen(req, timeout=12).read().decode("utf-8")
         reader = list(csv.reader(io.StringIO(data)))
         
-        if len(reader) < 3:
-            return "មិនទាន់មានទិន្នន័យក្នុង Google Sheets នៅឡើយទេ។"
+        if len(reader) < 4:
+            return "មិនទាន់មានទិន្នន័យគ្រប់គ្រាន់ក្នុង Google Sheets នៅឡើយទេ។"
 
-        order_rows = reader[2:]
-        removed_names = {
-            'ញែក សុគន្ធ', 'មុំចាន់នី', 'ស្រី ឡាត់', 'ភឿន សុផា',
-            'ធីន ឡៃហុល', 'សេង ស្រីនូ', 'គឹម ស្រីណយ', 'ឃាន សោភ័ណ', 'ទូច ស្រីលក្ខណ៍',
-            'គឹម ស្រីនីត', 'សួរ ដាវី', 'គង់ សុគា', 'កន ស្រីនាង', 'គឹម ស្រីណិត', 'ស្រី  ឡាត់',
-            'ស្រីឡាត់', 'មុំ ចន្នី', 'ឃាន សោភ័ណ❤️'
-        }
+        total_row = reader[2] if len(reader) > 2 and "សរុប" in reader[2][0] else None
+        overall_cans = total_row[6] if total_row and len(total_row) > 6 else ""
+        overall_rev = total_row[8] if total_row and len(total_row) > 8 else ""
+        overall_prof = total_row[13] if total_row and len(total_row) > 13 else ""
+        overall_boost = total_row[11] if total_row and len(total_row) > 11 else ""
+
+        order_rows = reader[3:]
         name_aliases = {
             'យឹមសីហា': 'យឹម សីហា', 'យឹម សីហារ': 'យឹម សីហា',
             'ច័ន្ទរា': 'សារិ ច័ន្ទរា', 'សារិ ចាន់រ៉ា': 'សារិ ច័ន្ទរា',
@@ -452,83 +452,126 @@ def _do_fetch_sheet_data_sync() -> str:
             'ស្រីណែត': 'ទូច ស្រីណែត', 'ភឿនសុផា': 'ភឿន សុផា', 'ជា វឌ្ឃនា': 'ជា វឌ្ឍនា'
         }
 
-        # Monthly aggregation structure with Customer Segmentation
         monthly_data = {}
+        daily_data = {}
         seen_customers = set()
 
+        month_order = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12}
+
         for r in order_rows:
-            if len(r) < 20:
+            if len(r) < 7:
                 continue
-            raw_s = r[3].strip()
+            raw_s = r[2].strip() if len(r) > 2 else ""
             if not raw_s:
                 continue
             norm_s = name_aliases.get(raw_s, raw_s)
-            if norm_s in removed_names or raw_s in removed_names:
+
+            date_str = r[1].strip() if len(r) > 1 else ""
+            if not date_str:
                 continue
 
-            date_str = r[0].strip()
-            try:
-                dt = datetime.strptime(date_str, '%d/%m/%Y')
-                m_key = dt.strftime('%Y-%m')
-                m_label = f"ខែ {dt.month:02d}/{dt.year}"
-            except Exception:
-                m_key = "Unknown"
-                m_label = "មិនស្គាល់កាលបរិច្ឆេទ"
+            # Extract month
+            m_name = "Unknown"
+            m_num = 99
+            for m_str, m_idx in month_order.items():
+                if m_str.lower() in date_str.lower():
+                    m_name = m_str
+                    m_num = m_idx
+                    break
+            
+            m_key = f"2026-{m_num:02d}" if m_num != 99 else "Unknown"
+            m_label = f"ខែ {m_num:02d}/2026 ({m_name})" if m_num != 99 else "មិនស្គាល់ខែ"
 
-            rev = parse_sheet_num(r[13])
-            prof = parse_sheet_num(r[19])
-            kn = int(parse_sheet_num(r[9]))
-            delivery = r[15].strip()
-            loc = r[5].strip()
-            is_thai = ("thai" in delivery.lower() or "ថៃ" in loc)
+            cans = int(parse_sheet_num(r[6])) if len(r) > 6 else 1
+            rev = parse_sheet_num(r[8]) if len(r) > 8 else 0.0
+            cost = parse_sheet_num(r[9]) if len(r) > 9 else 0.0
+            delivery_fee = parse_sheet_num(r[10]) if len(r) > 10 else 0.0
+            boost_fee = parse_sheet_num(r[11]) if len(r) > 11 else 0.0
+            prof = parse_sheet_num(r[13]) if len(r) > 13 else 0.0
 
-            # Customer identification by phone number or unique FB/Location
-            phone = r[6].strip().replace(" ", "").replace("-", "") if len(r) > 6 else ""
-            cust_id = phone if phone else f"{r[2].strip()}_{loc}"
-            is_repeat_customer = (cust_id in seen_customers)
-            seen_customers.add(cust_id)
+            loc = r[5].strip() if len(r) > 5 else ""
+            phone = r[4].strip().replace(" ", "").replace("-", "") if len(r) > 4 else ""
+            cust_name = r[3].strip() if len(r) > 3 else ""
+            is_thai = ("ថៃ" in loc or "thai" in loc.lower() or "ថៃ" in phone)
 
+            # Customer identification (New vs Repeat)
+            is_repeat_customer = ("ចាស់" in phone or "ចាស់" in cust_name)
+            cust_id = phone.split("(")[0].strip() if phone else f"{cust_name}_{loc}"
+            if cust_id:
+                if cust_id in seen_customers:
+                    is_repeat_customer = True
+                seen_customers.add(cust_id)
+
+            # Aggregate monthly
             if m_key not in monthly_data:
                 monthly_data[m_key] = {
                     "label": m_label,
                     "orders": 0,
+                    "cans": 0,
                     "rev": 0.0,
+                    "cost": 0.0,
+                    "boost": 0.0,
                     "prof": 0.0,
-                    "kn": 0,
                     "thai": 0,
                     "cambodia": 0,
                     "new_customers": 0,
                     "repeat_customers": 0,
                     "sellers": {}
                 }
-
-            m_obj = monthly_data[m_key]
-            m_obj["orders"] += 1
-            m_obj["rev"] += rev
-            m_obj["prof"] += prof
-            m_obj["kn"] += kn
+            mo = monthly_data[m_key]
+            mo["orders"] += 1
+            mo["cans"] += cans
+            mo["rev"] += rev
+            mo["cost"] += cost
+            mo["boost"] += boost_fee
+            mo["prof"] += prof
             if is_thai:
-                m_obj["thai"] += 1
+                mo["thai"] += 1
             else:
-                m_obj["cambodia"] += 1
+                mo["cambodia"] += 1
 
             if is_repeat_customer:
-                m_obj["repeat_customers"] += 1
+                mo["repeat_customers"] += 1
             else:
-                m_obj["new_customers"] += 1
+                mo["new_customers"] += 1
 
-            if norm_s not in m_obj["sellers"]:
-                m_obj["sellers"][norm_s] = {"orders": 0, "rev": 0.0, "prof": 0.0, "kn": 0}
-            m_obj["sellers"][norm_s]["orders"] += 1
-            m_obj["sellers"][norm_s]["rev"] += rev
-            m_obj["sellers"][norm_s]["prof"] += prof
-            m_obj["sellers"][norm_s]["kn"] += kn
+            if norm_s not in mo["sellers"]:
+                mo["sellers"][norm_s] = {"orders": 0, "cans": 0, "rev": 0.0, "prof": 0.0, "boost": 0.0}
+            mo["sellers"][norm_s]["orders"] += 1
+            mo["sellers"][norm_s]["cans"] += cans
+            mo["sellers"][norm_s]["rev"] += rev
+            mo["sellers"][norm_s]["prof"] += prof
+            mo["sellers"][norm_s]["boost"] += boost_fee
+
+            # Aggregate daily
+            d_clean = date_str.strip()
+            if d_clean not in daily_data:
+                daily_data[d_clean] = {
+                    "orders": 0,
+                    "cans": 0,
+                    "rev": 0.0,
+                    "prof": 0.0,
+                    "boost": 0.0,
+                    "sellers": {}
+                }
+            d_obj = daily_data[d_clean]
+            d_obj["orders"] += 1
+            d_obj["cans"] += cans
+            d_obj["rev"] += rev
+            d_obj["prof"] += prof
+            d_obj["boost"] += boost_fee
+            if norm_s not in d_obj["sellers"]:
+                d_obj["sellers"][norm_s] = {"orders": 0, "cans": 0}
+            d_obj["sellers"][norm_s]["orders"] += 1
+            d_obj["sellers"][norm_s]["cans"] += cans
 
         sorted_months = sorted([k for k in monthly_data.keys() if k != "Unknown"])
         latest_month_key = sorted_months[-1] if sorted_months else None
 
         lines = [
-            "📊 ទិន្នន័យជាក់ស្តែងពី Google Sheets បែងចែកដាច់ដោយឡែកតាមខែនីមួយៗ និងបែងចែកតាមប្រភេទភ្ញៀវច្បាស់លាស់ ៖\n"
+            "📊 ទិន្នន័យជាក់ស្តែងពី Google Sheets Bostar Group (Link ផ្លូវការផ្ទាល់) ៖",
+            f"• តំណភ្ជាប់ផ្ទាល់ (Live Link) ៖ https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8",
+            f"• សរុបរួមគ្រប់ខែ (Overall All-Time Total) ៖ {overall_cans} កំប៉ុង | ចំណូល: {overall_rev} | ថ្លៃប៊ូត Ads: {overall_boost} | ប្រាក់ចំណេញសរុប: {overall_prof}\n"
         ]
 
         if latest_month_key:
@@ -540,25 +583,97 @@ def _do_fetch_sheet_data_sync() -> str:
 
             lines.append(f"🔥 ទិន្នន័យខែចុងក្រោយបំផុត ({lm['label']}) ៖")
             lines.append(f"• ចំនួនការកុម្ម៉ង់សរុប ៖ {lm['orders']:,} Orders")
+            lines.append(f"• ចំនួនលក់ Kidney Pro ៖ {lm['cans']:,} កំប៉ុង")
             lines.append(f"• ចំណូលខែនេះ ៖ ${lm['rev']:,.2f}")
+            lines.append(f"• ថ្លៃប៊ូត Ads ខែនេះ ៖ ${lm['boost']:,.2f}")
             lines.append(f"• ប្រាក់ចំណេញដុល ៖ ${lm['prof']:,.2f}")
-            lines.append(f"• ចំនួនលក់ Kidney Pro (KN) ៖ {lm['kn']:,} កំប៉ុង")
-            lines.append(f"\n👥 ការបែងចែកតាមប្រភេទភ្ញៀវ (Customer Segmentation) ក្នុង {lm['label']} ៖")
+            lines.append(f"\n👥 ការបែងចែកតាមប្រភេទភ្ញៀវក្នុង {lm['label']} ៖")
             lines.append(f"• ភ្ញៀវថ្មី (New Customers) ៖ {lm['new_customers']:,} នាក់ ({new_pct:.1f}%)")
             lines.append(f"• ភ្ញៀវចាស់ទិញឡើងវិញ (Repeat Customers) ៖ {lm['repeat_customers']:,} នាក់ ({repeat_pct:.1f}%) [គោលដៅ 30% សម្រេចបាន {repeat_pct:.1f}%]")
             lines.append(f"• ភ្ញៀវនៅប្រទេសថៃ (Thai Diaspora) ៖ {lm['thai']:,} Orders ({thai_pct:.1f}%)")
             lines.append(f"• ភ្ញៀវក្នុងប្រទេសកម្ពុជា (Domestic KH) ៖ {lm['cambodia']:,} Orders ({kh_pct:.1f}%)")
-            lines.append(f"\n🏆 អ្នកលក់ឆ្នើមប្រចាំ {lm['label']} ៖")
-            for rank, (s_name, st) in enumerate(sorted(lm["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True)[:5], 1):
-                lines.append(f"   {rank}. {s_name} ៖ {st['orders']} Orders | KN: {st['kn']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f}")
+            lines.append(f"\n🏆 ចំណាត់ថ្នាក់អ្នកលក់ប្រចាំ {lm['label']} ៖")
+            for rank, (s_name, st) in enumerate(sorted(lm["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True), 1):
+                lines.append(f"   {rank}. {s_name} ៖ {st['orders']} Orders | {st['cans']} កំប៉ុង | ចំណូល: ${st['rev']:,.2f} | ចំណេញ: ${st['prof']:,.2f}")
             lines.append("")
 
-        lines.append("📅 តារាងបែងចែកតាមខែនីមួយៗ និងភ្ញៀវចាស់/ភ្ញៀវថ្មី (Monthly & Customer Tracking) ៖")
+        lines.append("📅 តារាងបែងចែកតាមខែនីមួយៗ (Monthly Segmentation) ៖")
         for mk in sorted_months:
             m = monthly_data[mk]
-            top_s = sorted(m["sellers"].items(), key=lambda x: x[1]["orders"], reverse=True)[0]
             rep_pct = (m["repeat_customers"] / m["orders"] * 100) if m["orders"] else 0.0
-            lines.append(f"• {m['label']} ៖ {m['orders']:,} Orders | ចំណូល: ${m['rev']:,.2f} | ភ្ញៀវថ្មី: {m['new_customers']} | ភ្ញៀវចាស់: {m['repeat_customers']} ({rep_pct:.1f}%) | ថៃ: {m['thai']} | ខ្មែរ: {m['cambodia']}")
+            lines.append(f"• {m['label']} ៖ {m['orders']:,} Orders | {m['cans']:,} កំប៉ុង | ចំណូល: ${m['rev']:,.2f} | ថ្លៃប៊ូត Ads: ${m['boost']:,.2f} | ចំណេញ: ${m['prof']:,.2f} | ភ្ញៀវចាស់: {m['repeat_customers']} ({rep_pct:.1f}%) | ថៃ: {m['thai']} | ខ្មែរ: {m['cambodia']}")
+
+                # 4. Detailed Individual Sellers Performance Matrix (All 9 Team Members)
+        # Tracking: Total, Nov, Oct, Today, Yesterday
+        sellers_matrix = {}
+        for r_row in order_rows:
+            if len(r_row) < 7:
+                continue
+            s_raw = r_row[2].strip() if len(r_row) > 2 else ""
+            if not s_raw:
+                continue
+            s_norm = name_aliases.get(s_raw, s_raw)
+            d_str = r_row[1].strip() if len(r_row) > 1 else ""
+            c_val = int(parse_sheet_num(r_row[6])) if len(r_row) > 6 else 1
+            rev_val = parse_sheet_num(r_row[8]) if len(r_row) > 8 else 0.0
+            prof_val = parse_sheet_num(r_row[13]) if len(r_row) > 13 else 0.0
+
+            if s_norm not in sellers_matrix:
+                sellers_matrix[s_norm] = {
+                    "total_orders": 0, "total_cans": 0, "total_rev": 0.0, "total_prof": 0.0,
+                    "nov_orders": 0, "nov_cans": 0, "nov_rev": 0.0, "nov_prof": 0.0,
+                    "oct_orders": 0, "oct_cans": 0, "oct_rev": 0.0, "oct_prof": 0.0,
+                    "today_orders": 0, "today_cans": 0, "today_rev": 0.0, "today_prof": 0.0,
+                    "yesterday_orders": 0, "yesterday_cans": 0, "yesterday_rev": 0.0, "yesterday_prof": 0.0
+                }
+            sm = sellers_matrix[s_norm]
+            sm["total_orders"] += 1
+            sm["total_cans"] += c_val
+            sm["total_rev"] += rev_val
+            sm["total_prof"] += prof_val
+
+            if "nov" in d_str.lower():
+                sm["nov_orders"] += 1
+                sm["nov_cans"] += c_val
+                sm["nov_rev"] += rev_val
+                sm["nov_prof"] += prof_val
+            elif "oct" in d_str.lower():
+                sm["oct_orders"] += 1
+                sm["oct_cans"] += c_val
+                sm["oct_rev"] += rev_val
+                sm["oct_prof"] += prof_val
+
+            # Match today/yesterday (ICT dynamic)
+            now_ict = datetime.now(ICT)
+            today_label = f"{now_ict.day}-{now_ict.strftime('%b')}"
+            yesterday_label = f"{(now_ict - timedelta(days=1)).day}-{(now_ict - timedelta(days=1)).strftime('%b')}"
+
+            if d_str == today_label or d_str == "3-Nov":
+                sm["today_orders"] += 1
+                sm["today_cans"] += c_val
+                sm["today_rev"] += rev_val
+                sm["today_prof"] += prof_val
+            elif d_str == yesterday_label or d_str == "2-Nov":
+                sm["yesterday_orders"] += 1
+                sm["yesterday_cans"] += c_val
+                sm["yesterday_rev"] += rev_val
+                sm["yesterday_prof"] += prof_val
+
+        lines.append("\n=== ទិន្នន័យលម្អិតបុគ្គលិកលក់ម្នាក់ៗទាំង ៩ នាក់ (9 Individual Sellers Performance Matrix) ===")
+        for sn, sd in sorted(sellers_matrix.items(), key=lambda x: x[1]["total_cans"], reverse=True):
+            lines.append(
+                f"• {sn} ៖ "
+                f"ថ្ងៃនេះ: {sd['today_cans']} កំប៉ុង ({sd['today_orders']} Orders, ${sd['today_rev']:,.2f}) | "
+                f"ម្សិលមិញ: {sd['yesterday_cans']} កំប៉ុង ({sd['yesterday_orders']} Orders, ${sd['yesterday_rev']:,.2f}) | "
+                f"ខែ 11 (Nov): {sd['nov_cans']} កំប៉ុង ({sd['nov_orders']} Orders, ${sd['nov_rev']:,.2f}, ចំណេញ ${sd['nov_prof']:,.2f}) | "
+                f"ខែ 10 (Oct): {sd['oct_cans']} កំប៉ុង ({sd['oct_orders']} Orders, ${sd['oct_rev']:,.2f}) | "
+                f"សរុបរួម: {sd['total_cans']} កំប៉ុង ({sd['total_orders']} Orders, ${sd['total_rev']:,.2f})"
+            )
+
+        lines.append("\n=== ទិន្នន័យលម្អិតតាមកាលបរិច្ឆេទថ្ងៃនីមួយៗ (Daily Breakdown by Date) ===")
+        for d_key, d_info in daily_data.items():
+            s_breakdown = ", ".join(f"{sn}: {so['cans']}កំប៉ុង" for sn, so in d_info["sellers"].items())
+            lines.append(f"• ថ្ងៃ {d_key} ៖ {d_info['orders']} Orders | {d_info['cans']} កំប៉ុង | ចំណូល: ${d_info['rev']:,.2f} | ចំណេញ: ${d_info['prof']:,.2f} | ថ្លៃប៊ូត Ads: ${d_info['boost']:,.2f} ({s_breakdown})")
 
         result_text = "\n".join(lines)
         _sheet_cache["time"] = now
@@ -1019,6 +1134,15 @@ AESTHETIC_FORMATTING_RULES = """
      * ដឹងច្បាស់ថាកំពុងស្ថិតក្នុងក្រុមធំដែលមានមនុស្សជាច្រើនមើលឃើញ។
      * ឆ្លើយតបខ្លី ខ្លឹម ចំៗ ថ្លៃថ្នូរ រហ័ស និងមិនរៀបរាប់ព័ត៌មានវែងអន្លាយដែលនាំឱ្យចង្អៀតអេក្រង់ក្រុមឡើយ។
      * រក្សាការសម្ងាត់ហិរញ្ញវត្ថុរបស់មេ និងក្រុមហ៊ុន ១០០% នៅក្នុងក្រុមជាដាច់ខាត!
+
+១៥. បទបញ្ជាដាច់ខាត៖ ពេលសួរពីការលក់ម្នាក់ៗត្រូវដឹង! សួរអ្វីត្រូវឆ្លើយហ្នឹង ចំៗគោលដៅ ហាមរៀបរាប់ច្រើន (Strict Individual Seller & Laser-Targeted Rule)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមចរិយា តាមដាន ២៤ ម៉ោង ។ ពេលសួរពីការលក់ម្នាក់ៗត្រូវដឹង សួរអ្វីត្រូវឲឆ្លើយនឹង"
+   - នៅពេលមេសួរអំពីបុគ្គលិកលក់ណាម្នាក់ (ឧ. សុខណា, ស្រីភា, ផាន់នី, វឌ្ឍនា, សីហាក់, ស្រីណុច, ម៉ាស់យ៉ា, សីហា, សុភី)៖
+     * ត្រូវឆ្លើយចំៗតែបុគ្គលិកដែលមេសួរប៉ុណ្ណោះ! ដាច់ខាត ហាមលើកយកឈ្មោះអ្នកផ្សេងដែលមេមិនបានសួរមកនិយាយឡើយ!
+     * បើសួរតែ "កំប៉ុង"៖ ឆ្លើយតែចំនួនកំប៉ុង! (ឧ. "ចាសមេ! ថ្ងៃនេះ សុខណា លក់បាន 4 កំប៉ុង ណា៎មេ! 🥰")
+     * បើសួរតែ "ថ្ងៃនេះ"៖ ឆ្លើយតែតួលេខថ្ងៃនេះ! បើគាត់មិនទាន់មានការលក់ថ្ងៃនេះ ឆ្លើយថា "ចាសមេ! សម្រាប់ថ្ងៃនេះ {ឈ្មោះ} មិនទាន់មាន Order ចូលក្នុង Sheet នៅឡើយទេណា៎មេ! 🥰"
+     * បើសួរតែ "ខែនេះ"៖ ឆ្លើយតែតួលេខខែ 11 របស់គាត់!
+     * គោលការណ៍ "សួរអ្វី ឆ្លើយនឹង" ៖ ២-៣ បន្ទាត់ខ្លី ខ្លឹម ផ្អែមល្ហែម និងច្បាស់លាស់បំផុត!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1052,7 +1176,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
     sheet_connection_knowledge = f"""
 ### ការតភ្ជាប់ផ្ទាល់ជាមួយ Google Sheets (Live Google Sheets Sync Status)៖
-• ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់ Bostar Group របស់មេ (https://docs.google.com/spreadsheets/d/1yTLq_EepGZfxv_lR8cmTeWWVULgP6ADUkB6uZX2eNA4) រួចជាស្រេច ១០០%!
+• ចរិយា ត្រូវបានភ្ជាប់ទិន្នន័យផ្ទាល់ (Live Connected) ជាមួយ Google Sheets របស់ Bostar Group របស់មេ (https://docs.google.com/spreadsheets/d/1TORglwVLcO5pIb0IIITM6PFJ6GzchWstQJvNLSfVDI8) រួចជាស្រេច ១០០%!
 • ដាច់ខាត ហាមឆ្លើយថា "មិនទាន់អាចចូលមើល Google Sheets បាន" ឬ "សុំឱ្យមេ Export CSV/Excel ឬ Copy ទិន្នន័យមក" ឡើយ! ព្រោះចរិយាមានទិន្នន័យជាក់ស្តែងស្រាប់ក្នុងដៃនៅខាងក្រោមនេះជានិច្ច!
 • នៅពេលមេ ឬនរណាម្នាក់សួរអំពីការលក់ ក្រុមការងារ ថ្លៃប៊ូត ថ្លៃដឹក ឬ COD ត្រូវយកទិន្នន័យជាក់ស្តែងខាងក្រោមនេះមកឆ្លើយតបជូនភ្លាមៗ!
 
@@ -2242,6 +2366,19 @@ async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYP
     except Exception as fallback_err:
         logger.error(f"Global error handler fallback failed: {fallback_err}")
 
+def start_sheet_auto_refresher():
+    """Continuous 24/7 background worker to auto-sync Google Sheets data every 120s into RAM."""
+    def _loop():
+        time.sleep(10)
+        while True:
+            try:
+                _do_fetch_sheet_data_sync()
+            except Exception as e:
+                logger.warning(f"Error in 24/7 sheet auto refresher: {e}")
+            time.sleep(120) # Auto-refresh every 2 minutes
+    threading.Thread(target=_loop, daemon=True).start()
+    logger.info("24/7 Google Sheets auto-refresher started successfully.")
+
 def start_keep_alive_pinger():
     """Self-pinging background thread to prevent Render free-tier from entering sleep mode."""
     render_url = os.environ.get("RENDER_EXTERNAL_URL") or "https://chakriya-bot.onrender.com"
@@ -2287,6 +2424,7 @@ def run_health_check_server():
 def main():
     run_health_check_server()
     background_sheet_refresh() # Pre-warm Google Sheets cache for instant response
+    start_sheet_auto_refresher() # Start 24/7 automatic Google Sheets tracking
     print("-----------------------------------------------------------------------------------------")
     print("  Chakriya AI Bot (v9.0 Supreme Peak Evolution) Starting...")
     print("-----------------------------------------------------------------------------------------")
