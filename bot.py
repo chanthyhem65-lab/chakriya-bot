@@ -762,6 +762,31 @@ def clean_text_formatting(text: str) -> str:
     cleaned = re.sub(r' +', ' ', cleaned)
     return cleaned.strip()
 
+def enforce_salutation_safety(text: str, is_boss: bool, salutation: str) -> str:
+    """Strict safety guardrail:
+    Per Boss mandate: Never call ANYONE 'មេ' except Hem Chanthy (បង ហែម ចន្ធី)!
+    If the recipient is NOT the Boss, strip or replace every accidental 'មេ' with their proper salutation.
+    """
+    if not text:
+        return ""
+    if is_boss:
+        return text
+
+    target = salutation if salutation else "បង"
+    res = text
+    
+    # 1. Replace common combined phrases
+    for phrase in ["ចាសមេ", "បាទមេ", "ជម្រាបសួរមេ", "ណា៎មេ", "ជូនមេ", "ឱ្យមេ", "របស់មេ", "ពីមេ", "នឹងមេ", "ពរមេ", "ជាមួយមេ", "ជួយមេ"]:
+        res = res.replace(phrase, phrase[:-2] + target)
+
+    # 2. Replace standalone 'មេ'
+    res = re.sub(r'([^\w]|^)មេ([^\w]|$)', rf'\g<1>{target}\g<2>', res)
+    res = re.sub(r'([^\w]|^)មេ([^\w]|$)', rf'\g<1>{target}\g<2>', res)
+
+    # 3. Handle direct verb attachments in Khmer (e.g. មេមាន, មេអាច, មេចង់...)
+    res = re.sub(r'មេ(មាន|អាច|ចង់|ត្រូវការ|បាន|ទៅ|មក|ជួយ|សម្រាក)', rf'{target}\g<1>', res)
+    return res
+
 async def generate_voice_reply(text: str) -> io.BytesIO | None:
     """Generates natural sweet Khmer neural speech using Microsoft Sreymom voice."""
     try:
@@ -923,6 +948,11 @@ AESTHETIC_FORMATTING_RULES = """
    - បើជា "មេ" (បង ហែម ចន្ធី)៖ ត្រូវឆ្លើយជូនមេដោយហៅ "មេ" និងផ្ដល់របាយការណ៍យុទ្ធសាស្ត្រពេញលេញ។
    - បើជាសមាជិកក្រុម ឬ Manager៖ ត្រូវផ្ទៀងផ្ទាត់ឈ្មោះរបស់គាត់ឱ្យចំ (ឧ. អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា, លោក ហ៊ួរ យ៉ារិទ្ធ, បង ស៊ីម វត្តី...) និងផ្ដល់តែទិន្នន័យត្រឹមត្រូវដែលទាក់ទងនឹងគាត់ ឬក្រុមរបស់គាត់ប៉ុណ្ណោះ។
    - ដាច់ខាត ហាមឆ្លើយទិន្នន័យច្រឡំមនុស្ស ហាមឆ្លើយទិន្នន័យច្រឡំក្រុម និងហាមហៅឈ្មោះខុសជាដាច់ខាត!
+
+១២. បទបញ្ជាដែកថែប៖ "ក្រៅពី បង ហែម ចន្ធី (Hem Chanthy) ដាច់ខាត ហាមហៅអ្នកផ្សេងថា 'មេ' ឱ្យសោះ!" (Exclusive Boss Salutation Lock)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមកំណត់ចំណាំ ក្រៅពីខ្ញុំ( hem chanthy , ហែម ចន្ធី ) សូមកុំហៅអ្នកផ្សេងថាមេឲ្យសោះ!"
+   - ពាក្យថា "មេ" (ចាសមេ, ជម្រាបសួរមេ, ជូនមេ, ណា៎មេ...) គឺត្រូវបានចាក់សោរបម្រុងទុកសម្រាប់តែ បង ហែម ចន្ធី (Hem Chanthy, ID: 814495505) តែម្នាក់គត់លើលោក!
+   - សម្រាប់មនុស្សគ្រប់រូបផ្សេងទៀតទាំងអស់ (មិនថាជាប្រធានក្រុម Bech Nora, Manager ណា, ឬសមាជិកក្រុមរូបណាឡើយ)៖ ដាច់ខាត ហាមហៅថា "មេ" ឡើយ! ត្រូវហៅគាត់តាមតួនាទី ឬឈ្មោះរបស់គាត់ជានិច្ច ដូចជា៖ "អ្នកគ្រូ...", "លោក...", ឬ "បង..." (ឧទាហរណ៍៖ "អ្នកគ្រូ ម៉ិច ច័ន្ទសុជាតា", "លោក ហ៊ួរ យ៉ារិទ្ធ", "បង សុមុន្នី ស្រីណុច", "បង ស៊ីម វត្តី"...)!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg") -> str:
@@ -2014,6 +2044,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo_mime
         )
         formatted_reply = clean_text_formatting(reply)
+        formatted_reply = enforce_salutation_safety(formatted_reply, is_boss, user_info["salutation"])
         if user_info.get("just_identified"):
             formatted_reply = f"ចាស{user_info['salutation']}! ចរិយាបានកត់ត្រា និងចងចាំអត្តសញ្ញាណរបស់{user_info['salutation']}ក្នុងប្រព័ន្ធរួចរាល់ហើយណា៎! 🥰🌸\n\n" + formatted_reply
         await safe_send_reply(update, context, formatted_reply)
