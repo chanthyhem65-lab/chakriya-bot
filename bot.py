@@ -59,7 +59,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"]
+AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
@@ -406,7 +406,8 @@ def parse_sheet_num(val: str) -> float:
 
 def fetch_live_sales_data() -> str:
     now = time.time()
-    if now - _sheet_cache["time"] < 60 and _sheet_cache["content"]:
+    # High-Speed in-memory cache: serve instantly within 300s (5 minutes)
+    if now - _sheet_cache["time"] < 300 and _sheet_cache["content"]:
         return _sheet_cache["content"]
 
     try:
@@ -968,8 +969,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     user_info = get_user_identity_info(user, user_message)
     is_boss = user_info["is_boss"]
 
-    # 1. Check for memory learning
-    check_and_extract_memory(user_id, user_message)
+    # 1. Check for memory learning in background thread (Zero latency to user reply)
+    threading.Thread(target=check_and_extract_memory, args=(user_id, user_message), daemon=True).start()
 
     # 2. Check if query is related to sales, reports, or team performance
     sales_keywords = [
