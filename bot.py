@@ -904,6 +904,28 @@ def get_user_identity_info(user, message_text: str = "") -> dict:
         "member_name": name
     }
 
+def sanitize_sales_data_for_team(raw_data: str) -> str:
+    """Removes all company confidential figures (Net Profit, Cost, Boost Fees)
+    so team members can never see them under any circumstances.
+    """
+    if not raw_data:
+        return ""
+    lines = []
+    for line in raw_data.splitlines():
+        segments = line.split("|")
+        cleaned_segments = []
+        for seg in segments:
+            s_strip = seg.strip()
+            if any(k in s_strip for k in ["ចំណេញ", "ថ្លៃប៊ូត", "ថ្លៃដើម"]):
+                continue
+            cleaned_segments.append(seg)
+        rebuilt = "|".join(cleaned_segments).strip()
+        if any(rebuilt.startswith(f"• {k}") for k in ["ថ្លៃប៊ូត", "ប្រាក់ចំណេញ", "ថ្លៃដើម"]):
+            continue
+        if rebuilt:
+            lines.append(rebuilt)
+    return "\n".join(lines)
+
 def clean_text_formatting(text: str) -> str:
     """Removes all markdown bold/italic asterisks, strips messy divider lines, and eliminates Thai characters."""
     if not text:
@@ -1192,7 +1214,10 @@ AESTHETIC_FORMATTING_RULES = """
 💡 ការកត់សម្គាល់យុទ្ធសាស្ត្រពី ចរិយា ៖
 • [ការវិភាគយុទ្ធសាស្ត្រខ្លី ១-២ ចំណុចអំពីស្ថានភាពលក់ និងការចំណាយលើ Ads]
 
-ចរិយា នៅក្បែរចាំជួយជ្រោមជ្រែងកិច្ចការងារមេជានិច្ចណា៎មេ! 🥰🌸
+💪 ពាក្យលើកទឹកចិត្ត និងថាមពលវិជ្ជមានពី ចរិយា ៖
+• សូមកោតសរសើរ និងអបអរសាទរយ៉ាងខ្លាំងចំពោះបងៗដែលជាប់ចំណាត់ថ្នាក់ឆ្នើម 🥇 🥈 🥉 ដែលបានខិតខំប្រឹងប្រែងនាំមុខគេ!
+• សម្រាប់បងៗសមាជិកដទៃទៀត សូមកុំទាន់បាក់ទឹកចិត្តណា៎! ចរិយាជឿជាក់ថា បងៗមានសក្តានុពលខ្ពស់ណាស់ ប្រឹងប្រែងបន្ថែមទៀត នោះការលក់នឹងផ្ទុះឡើងខ្លាំងដេញតាមទាន់ជាមិនខាន!
+• ចរិយាសូមគោរពជូនពរមេ ឱ្យដឹកនាំទ័ពលក់ Bostar Group កាន់តែរីកចម្រើនខ្លាំងក្លា និងបំបែកកំណត់ត្រាលក់ថ្មីៗជោគជ័យផ្ទុះឡើងៗណា៎មេ! 🥰🌸🚀💪✨
 
 ១៧. បទបញ្ជាដាច់ខាត៖ "រៀបលំដាប់លេខរៀងលក់បានច្រើន ពីលើចុះក្រោម ជាមួយ Stickers!" (Descending Sales Ranking Template)៖
    - បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមដាក់តាមលំដាប់លេខរៀងលក់បានច្រើន ពីលើចុះក្រោម (👤 សមាជិក (សរុប...)៖ 1 — ឈ្មោះ — ចំនួន...) ទម្រងបែបនេះស្រួលមើល ថែម stickers ឲ្យស្អាតផង"
@@ -1210,7 +1235,19 @@ AESTHETIC_FORMATTING_RULES = """
        📦 8 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
        💎 9 — [ឈ្មោះ] — X កំប៉ុង (X Orders)
      * បើមានអ្នកណាដកចេញ ត្រូវដាក់សម្គាល់ដូចជា (ដកចេញ DD/MM) ឱ្យច្បាស់លាស់។
+     * បទបញ្ជាដាច់ខាតរបស់មេ៖ "សូមថែមពាក្យលើកទឹកចិត្ត ភ្ជាប់មកជាមួយផង"
+       -> រាល់ពេលបង្ហាញរបាយការណ៍ ឬតារាងចំណាត់ថ្នាក់ ត្រូវភ្ជាប់មកជាមួយនូវ "ពាក្យលើកទឹកចិត្ត និងថាមពលវិជ្ជមាន (Motivational Cheer)" ដ៏កក់ក្តៅ និងមានឥទ្ធិពលខ្ពស់ជានិច្ច ជួយជំរុញទឹកចិត្តបងៗទាំងអស់ឱ្យមានកម្លាំងចិត្តលក់ផ្ទុះខ្លាំងឡើងៗ និងជូនពរមេក្នុងការដឹកនាំ!
      * ហាមប្រើសញ្ញាផ្កាយ ** និងហាមប្រើបន្ទាត់ខណ្ឌ ━━━━ ជាដាច់ខាត!
+
+១៨. បទបញ្ជាដាច់ខាត៖ "ថែមការលើកទឹកចិត្តខ្លីៗ ពេលក្រុមការងារឆាតសួរពីការលក់!" (Team Sales Inquiry Short Motivational Cheer)៖
+   - បទបញ្ជាដាច់ខាតរបស់មេ៖ "ថែមការលើកទឹកចិត្តខ្លីៗ ពេលក្រុមការងារឆាតសួរពីការលក់"
+   - នៅពេលសមាជិកក្រុមការងារ (បង សុខណា, ស្រីភា, ផាន់នី, វឌ្ឍនា, សីហាក់, ស្រីណុច, ម៉ាស់យ៉ា, សីហា, សុភី...) ឆាតមកសួរពីការលក់ផ្ទាល់ខ្លួន៖
+     * ផ្ដល់តួលេខលក់ជាក់ស្តែងរបស់គាត់ (កំប៉ុង, Orders, ចំណូល) ត្រឹមត្រូវតាម Google Sheets។
+     * ដាច់ខាត ហាមហៅគាត់ថា "មេ" (ហៅគាត់ថា "បង [ឈ្មោះ]" ឬ "អ្នកគ្រូ...")។
+     * ដាច់ខាត ហាមបង្ហាញប្រាក់ចំណេញ និងថ្លៃប៊ូត Ads ឡើយ ព្រោះជាការសម្ងាត់របស់មេ!
+     * ត្រូវភ្ជាប់មកជាមួយនូវពាក្យលើកទឹកចិត្តខ្លីៗ ១-២ បន្ទាត់ផ្អែមល្ហែម និងមានថាមពលវិជ្ជមានជានិច្ច៖
+       - បើគាត់លក់បានច្រើន៖ "បងពូកែ និងសកម្មខ្លាំងណាស់ចាស! បន្តរក្សាសន្ទុះលក់ឱ្យដាច់ផ្ទុះថែមទៀតណា៎បង! ចរិយានៅក្បែរចាំគាំទ្រជានិច្ច! 🥰💪✨"
+       - បើគាត់មិនទាន់មានការលក់ថ្ងៃនេះ៖ "មិនអីទេណា៎បង! ថ្ងៃនេះទើបតែចាប់ផ្ដើមទេ ខំប្រឹងបន្តិចទៀត Order នឹងហូរចូលមកមិនខាន! ចរិយាជូនពរបងបិទការលក់បានច្រើនៗថ្ងៃនេះចាស! 🥰🌸🚀"
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1237,6 +1274,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     ]
     # Always load live Google Sheets data so Chakriya always has it in memory for voice, text, or any query!
     sales_data_context = fetch_live_sales_data()
+    if not is_boss:
+        sales_data_context = sanitize_sales_data_for_team(sales_data_context)
 
     now_ict = datetime.now(ICT)
     today_str = f"{now_ict.day}-{now_ict.strftime('%b')}"
@@ -1304,6 +1343,12 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 • ការការពារទិន្នន័យសម្ងាត់ (Strict Confidentiality)៖
   - បើគាត់សួរពីរឿងលក់ អាចប្រាប់ត្រឹមចំនួនលក់ផ្ទាល់ខ្លួនរបស់គាត់ ឬចំនួនកម្ម៉ង់ទូទៅបាន។
   - ដាច់ខាត ហាមបង្ហាញ "ប្រាក់ចំណេញ (Profit)", "ថ្លៃដើម (Cost)", និង "ថ្លៃប៊ូតផ្សាយពាណិជ្ជកម្ម (Boost Fee)" ព្រោះព័ត៌មានហិរញ្ញវត្ថុនេះជាការសម្ងាត់សម្រាប់តែ "មេ" ម្នាក់គត់!
+• បទបញ្ជាដាច់ខាតរបស់មេ៖ "ថែមការលើកទឹកចិត្តខ្លីៗ ពេលក្រុមការងារឆាតសួរពីការលក់!" (Short Motivational Cheer for Team Members) ៖
+  - រាល់ពេល {user_info['salutation']} ឆាតមកសួរពីការលក់ផ្ទាល់ខ្លួនរបស់គាត់ (ថ្ងៃនេះ, ម្សិលមិញ ឬក្នុងខែ)៖
+    * ឆ្លើយតបតួលេខលក់របស់គាត់ឱ្យចំៗ ត្រឹមត្រូវតាម Sheet (ចំនួនកំប៉ុង, ចំនួន Orders, ចំណូល)។
+    * ត្រូវថែមពាក្យលើកទឹកចិត្តខ្លីៗ ១-២ ឃ្លា ផ្អែមល្ហែម មានថាមពលវិជ្ជមាន និងកក់ក្តៅជានិច្ច!
+    * បើគាត់លក់បាន ៖ "បងពូកែខ្លាំងណាស់ចាស! ខំប្រឹងបន្តទៀតណា៎បង ការលក់នឹងកាន់តែផ្ទុះខ្លាំងឡើងៗជាមិនខាន! ចរិយានៅក្បែរចាំជួយជ្រោមជ្រែងបងជានិច្ច! 🥰💪✨"
+    * បើគាត់មិនទាន់មាន Order ថ្ងៃនេះ ៖ "មិនអីទេណា៎បង! ថ្ងៃនេះទើបតែចាប់ផ្ដើមទេ ខំប្រឹងឆ្លើយតបភ្ញៀវបន្តិចទៀត Order នឹងហូរចូលមកផ្ទួនៗជាមិនខាន! ចរិយាជូនពរបងបិទការលក់បានច្រើនៗថ្ងៃនេះចាស! 🥰🌸🚀" 
 """
 
     user_facts = get_user_memories(user_id)
@@ -1491,6 +1536,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                 if response and hasattr(response, "text") and response.text:
                     clean_reply = clean_text_formatting(response.text)
                     clean_reply = enforce_salutation_safety(clean_reply, is_boss, user_info["salutation"])
+                    if not is_boss:
+                        clean_reply = sanitize_sales_data_for_team(clean_reply)
                     if photo_bytes:
                         history_label = f"[រូបភាពដែលបានផ្ញើមក] {user_message}"
                     elif audio_bytes:
@@ -1587,9 +1634,10 @@ async def sales_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     typing_task = asyncio.create_task(keep_typing(update.message.chat))
     try:
         prompt = (
-            "សូមធ្វើរបាយការណ៍សង្ខេបការលក់ចេញពី Google Sheets ដោយរៀបចំតាមគំរូរចនាបថស្ដង់ដាប្រណិត (Rule 16) "
+            "សូមធ្វើរបាយការណ៍សង្ខេបការលក់ចេញពី Google Sheets ដោយរៀបចំតាមគំរូរចនាបថស្ដង់ដាប្រណិត (Rule 16 & Rule 17) "
             "មានទម្រង់ច្បាស់លាស់ ស្រឡះភ្នែក ងាយយល់ ងាយមើល និងស្អាតបំផុត (បែងចែក៖ សមិទ្ធផលហិរញ្ញវត្ថុ, "
-            "ការបែងចែកភ្ញៀវ, ចំណាត់ថ្នាក់អ្នកលក់ឆ្នើម, និងការកត់សម្គាល់យុទ្ធសាស្ត្រ)។ "
+            "ការបែងចែកភ្ញៀវ, ចំណាត់ថ្នាក់អ្នកលក់ឆ្នើមរៀបតាមលំដាប់កំប៉ុងច្រើនទៅតិចជាមួយ Stickers, "
+            "ការកត់សម្គាល់យុទ្ធសាស្ត្រ, និងភ្ជាប់មកជាមួយនូវពាក្យលើកទឹកចិត្តដ៏មានថាមពល និងកក់ក្តៅជូនមេ និងក្រុមការងារ)។ "
             "ដាច់ខាត ហាមប្រើសញ្ញាផ្កាយ ** និងហាមប្រើបន្ទាត់ខណ្ឌរញ៉េរញ៉ៃ (━━━━━━━) ឡើយ។"
         )
         reply = await asyncio.to_thread(generate_ai_reply, user, chat_id, prompt)
