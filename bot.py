@@ -2832,6 +2832,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
             text = "សួស្តី ចរិយា"
 
+    text_clean = text.lower().strip()
+
     # Facebook post intent detection (Boss only)
     fb_post_patterns = ["ផុសចូលផេក", "ផុសទៅផេក", "ផុសផេក", "post ចូលផេក", "post ទៅផេក", "post ផេក"]
     is_fb_post_intent = is_owner_user(update.effective_user) and any(p in text_clean for p in fb_post_patterns)
