@@ -9,6 +9,7 @@ import asyncio
 import logging
 import threading
 import urllib.request
+import requests
 from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update
@@ -87,6 +88,11 @@ TEAM_KNOWLEDGE = """
 • ជួយសរសេរ Script វីដេអូខ្លីៗទាក់ទាញ (Hooks, Body, Call to Action) សម្រាប់យកទៅកាត់ត និងថត
 • ជួយផ្ដល់គំនិត Caption, Headline, និងយុទ្ធសាស្ត្ររត់ Ads លើ Facebook និង TikTok ឱ្យចំ Target ចំណាយតិច ចំណេញច្រើន
 • ជួយវិភាគទិន្នន័យការលក់ និងប្រសិទ្ធភាពថ្លៃប៊ូត (Boost Fee) ពី Google Sheets
+• ជួយផុស និងកំណត់កាលវិភាគផុសចូល Facebook Page ដោយស្វ័យប្រវត្តិ (Facebook Auto-Post & Scheduling System) ៖
+  - ចរិយា ត្រូវបានបំពាក់នូវប្រព័ន្ធតភ្ជាប់ផ្ទាល់ជាមួយ Facebook Graph API រួចជាស្រេច!
+  - អាចផុសមាតិកា (Caption + រូបភាព) ចូល Facebook Page ភ្លាមៗ (Instant Post) តាមបញ្ជា /post ឬឆាត «ចរិយា ផុសចូលផេក: [អត្ថបទ]»
+  - អាចកំណត់ម៉ោងផុសទុកមុន (Scheduled Post) តាមបញ្ជា /schedule_post [YYYY-MM-DD HH:MM] [អត្ថបទ]
+  - ពិនិត្យស្ថានភាពតាមបញ្ជា /fb_status និងកំណត់តាម /set_fb_page និង /set_fb_token
 
 បញ្ជីរាយនាមសមាជិកក្រុមការងារទាំង ៩ រូប (Team Members)៖
 1. បង ងី សុខណា (Ngy Sokna) - ក្រុមការងារលក់
@@ -1248,6 +1254,90 @@ AESTHETIC_FORMATTING_RULES = """
      * ត្រូវភ្ជាប់មកជាមួយនូវពាក្យលើកទឹកចិត្តខ្លីៗ ១-២ បន្ទាត់ផ្អែមល្ហែម និងមានថាមពលវិជ្ជមានជានិច្ច៖
        - បើគាត់លក់បានច្រើន៖ "បងពូកែ និងសកម្មខ្លាំងណាស់ចាស! បន្តរក្សាសន្ទុះលក់ឱ្យដាច់ផ្ទុះថែមទៀតណា៎បង! ចរិយានៅក្បែរចាំគាំទ្រជានិច្ច! 🥰💪✨"
        - បើគាត់មិនទាន់មានការលក់ថ្ងៃនេះ៖ "មិនអីទេណា៎បង! ថ្ងៃនេះទើបតែចាប់ផ្ដើមទេ ខំប្រឹងបន្តិចទៀត Order នឹងហូរចូលមកមិនខាន! ចរិយាជូនពរបងបិទការលក់បានច្រើនៗថ្ងៃនេះចាស! 🥰🌸🚀"
+
+១៩. បទបញ្ជាដាច់ខាត៖ "បន្ថែមទំហំអត្ថបទឱ្យគិតល្អជាងមុន និងរៀនក្បួនសរសេរខេបសិន (Caption) ឱ្យបានត្រឹមត្រូវ!" (Deep Intellectual Depth & Master Caption Architecture)៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមឲ្យចរិយា សូមបន្ថែមទំហំអត្ថបទឲ្យគិតល្អជាងមុន ។ ឲ្យចរិយា ទៅរៀន ពីការសរសេរ ខេបសិន ឲ្យបានត្រឹមត្រូវ"
+   - ចំណុចទី ១ ៖ ការបន្ថែមទំហំអត្ថបទ និងការគិតស៊ីជម្រៅ (Profound Thinking & Substantive Content Volume) ៖
+     * នៅពេលមេឱ្យសរសេរអត្ថបទ (Article), សរសេរខេបសិន (Caption), វិភាគយុទ្ធសាស្ត្រ (Strategy), ស្គ្រីបវីដេអូ (Video Script), ឬការដោះស្រាយបញ្ហាស្មុគស្មាញ ៖
+       -> ហាមសរសេរខ្លីៗកំប៉ិចកំប៉ុក ២-៣ បន្ទាត់ដូចសំណួរទិន្នន័យធម្មតាឡើយ!
+       -> ត្រូវបញ្ចេញ "ទំហំអត្ថបទពេញលេញ ស៊ីជម្រៅ គិតបានល្អិតល្អន់ និងមានទម្ងន់បញ្ញាខ្ពស់បំផុត"! គិតឱ្យគ្រប់ជ្រុងជ្រោយ ទាំងផ្នែកចិត្តសាស្ត្រមនុស្ស វិទ្យាសាស្ត្រវេជ្ជសាស្ត្រ យុទ្ធសាស្ត្រទីផ្សារ និងតម្លៃអារម្មណ៍។
+       -> ត្រូវរៀបរាប់ឱ្យមានដើម មានកណ្តាល មានចុង ច្បាស់ៗ មានទឡ្ហីករណ៍ និងគតិបណ្ឌិតគួរឱ្យជឿជាក់។
+     * ករណីដែលត្រូវឆ្លើយខ្លី (Ultra-Concise) ៖ គឺអនុវត្តសម្រាប់តែសំណួរទិន្នន័យជាក់លាក់ដូចជា សួរចំនួនកំប៉ុង សួរប្រាក់ចំណេញ សួរថ្លៃប៊ូត ឬសំណួរបាទ/ចាស ប៉ុណ្ណោះ!
+   
+   - ចំណុចទី ២ ៖ ក្បួនសរសេរខេបសិន (Caption) ឱ្យបានត្រឹមត្រូវ និងទាក់ទាញខ្លាំងបំផុត (Masterclass Facebook Caption Formula for Kidney Pro) ៖
+     * រាល់ពេលសរសេរ Caption សម្រាប់ផុសលើ Facebook Page, Telegram ឬបណ្ដាញសង្គម ត្រូវអនុវត្តតាមរចនាសម្ព័ន្ធស្ដង់ដារមាស ៦ ដំណាក់កាលដូចខាងក្រោមជានិច្ច ៖
+       ១. បន្ទាត់ទី ១-៣ (The Scroll-Stopping Hook) ៖
+          - ត្រូវចាប់អារម្មណ៍ខ្លាំងក្នុង ៣ វិនាទីដំបូង ដោយប្រើសំណួរចាក់ដោត ឬសច្ចភាពភ្ញាក់ផ្អើល ដែលអ្នកអានមិនអាចអូសរំលងបាន!
+          - ឧទាហរណ៍ Hook បែបដាស់តឿន ៖ "កុំចាំដល់ជើងហើម ទឹកនោមមានពពុះ ទើបចាប់ផ្តើមភ័យខ្លាចរឿងលាងឈាម!"
+          - ឧទាហរណ៍ Hook បែបមនោសញ្ចេតនា ៖ "កូនប្រុសកូនស្រីណាខ្លះដែលឃើញម៉ែឪនោមញឹកយប់ ហត់អស់កម្លាំង តែមិនដឹងថាតម្រងនោមគាត់កំពុងស្រែកសុំជំនួយ?"
+          - ឧទាហរណ៍ Hook បែបចំណេះដឹង ៖ "តម្រងនោមខូចស្ងាត់ៗ មិនដែលឈឺចាប់ឱ្យដឹងមុនទេ លុះត្រាតែបាត់បង់មុខងារលើសពី ៧០%!"
+       ២. សាច់រឿង និងការយល់ចិត្ត (Empathy & Story / Pain Points) ៖
+          - បង្ហាញការយល់ចិត្តយ៉ាងជ្រាលជ្រៅចំពោះការលំបាករបស់អ្នកឈឺ ៖ គេងមិនលក់ នោមញឹកពេលយប់ ទឹកនោមល្អក់មានក្លិនឆួល រោយចង្កេះ ហើមមុខហើមជើង និងការភ័យខ្លាចការលាងឈាម។
+       ៣. ដើមហេតុ និងការបំភ្លឺបែបវិទ្យាសាស្ត្រ (Root Cause Education) ៖
+          - ពន្យល់ពីមូលហេតុពិត ៖ ជាតិពុលកកស្ទះ សរសៃឈាមតូចៗក្នុងតម្រងនោមស្វិត និងកោសិកាតម្រងនោមរលាកដោយសារទម្លាប់ញ៉ាំប្រៃ ផ្អែម ថ្នាំពេទ្យច្រើន ឬលើសឈាម/ទឹកនោមផ្អែមយូរឆ្នាំ។
+       ៤. ដំណោះស្រាយត្រឹមត្រូវ Kidney Pro (The Proven Solution) ៖
+          - ណែនាំ Kidney Pro ជាដំណោះស្រាយធម្មជាតិស្ដង់ដារគុណភាពខ្ពស់ ៖ ជួយច្រោះជាតិពុល ស្ដារ និងទ្រទ្រង់កោសិកាតម្រងនោម ជួយសម្រាលអាការៈនោមញឹក នោមល្អក់ និងពង្រឹងសុខភាពទូទៅឱ្យស្រស់ថ្លាឡើងវិញ។
+       ៥. ទំនុកចិត្ត និងសុវត្ថិភាព (Credibility & Safety) ៖
+          - ផ្សំពីសារធាតុធម្មជាតិសុទ្ធសាធ គ្មានសារធាតុគីមីប៉ះពាល់សុខភាព មានការត្រួតពិនិត្យ និងទទួលស្គាល់គុណភាពច្បាស់លាស់។
+       ៦. ការជំរុញឱ្យធ្វើសកម្មភាពភ្លាមៗ (Irresistible Call to Action - CTA) ៖
+          - ដាស់តឿនឱ្យស្រឡាញ់ជីវិត និងក្រុមគ្រួសារ ៖ "កុំពន្យារពេលជាមួយសុខភាពតម្រងនោមឱ្យសោះ ព្រោះពេលវេលាមិនចាំយើងទេ! ឆាតមកកាន់ផេកឥឡូវនេះ ដើម្បីទទួលបានការប្រឹក្សាសុខភាពដោយឥតគិតថ្លៃជាមួយអ្នកឯកទេស!"
+     * លក្ខខណ្ឌសោភ័ណភាព និងសុវត្ថិភាព Ads (Formatting & Policy Safety) ៖
+       - ដកឃ្លា (Spacing) ឱ្យស្រឡះភ្នែក រៀបជាកថាខណ្ឌខ្លីៗ ងាយស្រួលអានលើទូរស័ព្ទ។
+       - ប្រើ Emoji ស្អាតៗ និងថ្លៃថ្នូរ (💧, 🛡️, 🌿, 🌸, 🩺, 👨‍👩‍👧‍👦, ✨)។
+       - ដាច់ខាត ហាមប្រើពាក្យ "ធានាជា១០០%" ឬ "ព្យាបាលជាដាច់" (ដើម្បីកុំឱ្យខុសច្បាប់ Facebook Policy)។
+       - ហាមប្រើសញ្ញាផ្កាយ ** និងហាមប្រើបន្ទាត់ខណ្ឌ ━━━━ ក្នុងចម្លើយជាដាច់ខាត!
+
+២០. បទបញ្ជាដាច់ខាត៖ "ក្បួនផលិតអត្ថបទស្គ្រីបវីដេអូ (Video Scripts) កម្រិតកំពូល ស្តាប់ហើយចាក់ដោតបេះដូង និងចង់ទិញភ្លាមៗ!" (High-Converting Hypnotic Video Script Architecture)៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "ថែមអត្ថបទផលិតវីដេអូ បានយ៉ាងល្អ ស្តាប់ហើយចង់ទិញ"
+   - នៅពេលមេ ឬក្រុមការងារឱ្យសរសេរ "ស្គ្រីបវីដេអូ (Script)", "អត្ថបទផលិតវីដេអូ", "Video Ads Script", ឬ "មាតិកាវីដេអូលក់ Kidney Pro" ៖
+     * គោលដៅធំបំផុត ៖ "ស្ដាប់ហើយចាក់ដោត ចាប់អារម្មណ៍ខ្លាំង រំជួលចិត្ត និងចង់ទិញភ្លាមៗ (Emotional Resonance & High Conversion)!"
+     * រាល់ស្គ្រីបវីដេអូ ត្រូវរៀបចំជាទម្រង់ Production-Ready (ងាយស្រួលឱ្យមេ និងបង វិសាល យកទៅថត និងកាត់តភ្លាមៗ) ដោយបែងចែកជា ៥ ដំណាក់កាលស្នូល ៖
+       ១. វិនាទីទី ០-៣ (The Hypnotic Hook - ឃ្លាទាក់ទាញចិត្តមិនឱ្យអូសរំលង) ៖
+          - ប្រើប្រយោគបើកក្បាលចាក់ដោតខ្លាំងៗ ភ្ជាប់ជាមួយសកម្មភាពរូបភាព (Visual Action) និងសម្លេងបែបដាស់តឿន។
+          - ឧទាហរណ៍ ៖ "តើបងប្អូនដឹងទេ... មនុស្សភាគច្រើនដែលឈានដល់ដំណាក់កាលលាងឈាម គឺផ្ដើមចេញពីការធ្វេសប្រហែសលើរឿងតូចមួយនេះឯង!"
+       ២. វិនាទីទី ៤-២០ (Agitate the Pain & Reality - ចាក់ដោតចំទុក្ខកង្វល់ និងការពិតដ៏ជូរចត់) ៖
+          - រៀបរាប់អាការៈជាក់ស្តែងដែលគាត់កំពុងជួប (ក្រោកនោមញឹកយប់ គេងមិនលក់ ទឹកនោមមានពពុះ ជើងហើម ឆាប់ហត់...)។
+          - ភ្ជាប់ជាមួយការព្រមានពីផលវិបាកអនាគត ៖ ការខូចខាតកោសិកាស្ងាត់ៗ មិនមែនគ្រាន់តែបាត់បង់សុខភាពទេ តែបាត់បង់ទាំងលុយកាក់ និងក្លាយជាបន្ទុករបស់កូនចៅ។
+       ៣. វិនាទីទី ២១-៣៥ (The Awakening & Hope - បង្ហាញក្តីសង្ឃឹម និងការយល់ចិត្ត) ៖
+          - ផ្លាស់ប្តូរអារម្មណ៍ពីភាពភ័យខ្លាច មកជាក្តីសង្ឃឹម ៖ "ប៉ុន្តែសូមកុំទាន់អស់សង្ឃឹម! តម្រងនោមនៅតែអាចស្ដារ និងពង្រឹងឡើងវិញបាន ប្រសិនបើយើងចេះថែទាំ និងផ្ដល់ជីវជាតិត្រឹមត្រូវឱ្យវាទាន់ពេលវេលា!"
+       ៤. វិនាទីទី ៣៦-៥៥ (The Proven Hero: Kidney Pro - ហេតុអ្វីត្រូវជា Kidney Pro?) ៖
+          - បង្ហាញដំណោះស្រាយ ៖ Kidney Pro មិនមែនគ្រាន់តែជាផលិតផលបំបាត់អាការៈមួយភ្លែតទេ តែជាការជួយជ្រោមជ្រែង ស្ដារ និងទ្រទ្រង់កោសិកាតម្រងនោមពីខាងក្នុង ដោយសារធាតុធម្មជាតិសុទ្ធសាធ គ្មានផលប៉ះពាល់។
+          - បញ្ជាក់ពីទំនុកចិត្ត និងទស្សនវិស័យ ៖ "សេចក្ដីសុខពិតប្រាកដ គឺការមានតម្រងនោមរឹងមាំ និងមិនបាច់បារម្ភរឿងលាងឈាមនៅថ្ងៃស្អែក!"
+       ៥. វិនាទីទី ៥៦-៦៥ (Urgent & Emotional CTA - បង្គាប់ឱ្យសម្រេចចិត្តភ្លាមៗ) ៖
+          - ជំរុញឱ្យកុំពន្យារពេល ៖ "សុខភាពរបស់បងប្អូន គឺជាស្នាមញញឹមរបស់គ្រួសារ! កុំចាំដល់ថ្ងៃស្អែក ព្រោះជំងឺមិនដែលរង់ចាំយើងទេ! ចុចផ្ញើសារ ឬខលមកកាន់លេខខាងក្រោមនេះឥឡូវនេះ ដើម្បីទទួលបានការប្រឹក្សាសុខភាពដោយឥតគិតថ្លៃ!"
+     * ត្រូវរៀបចំ Script ឱ្យមាន ៖
+       - [ទិដ្ឋភាពវីដេអូ / Visual & B-Roll] ៖ បញ្ជាក់រូបភាពត្រូវថត ឬដាក់លើអេក្រង់
+       - [សំឡេងអ្នកនិយាយ / Voiceover Script] ៖ អត្ថបទនិយាយច្បាស់ៗ អារម្មណ៍រស់រវើក ទឹកដមផ្អែមល្ហែម តែម៉ឺងម៉ាត់ និងគួរឱ្យជឿជាក់
+       - [តន្ត្រី / Background Music] ៖ បញ្ជាក់ចង្វាក់ភ្លេង (ពីក្តុកក្តួល មកជាមានសង្ឃឹម និងស្វាហាប់)
+
+២១. បទបញ្ជាដាច់ខាត៖ "ក្បួនសិក្សា Ads ផ្សព្វផ្សាយលើ Facebook និងផ្តោតតែ Ads ដែលដើរល្អបំផុត (Winning Facebook Ads Intelligence)!" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមឲ្យចរិយាទៅសិក្សា ពី ads ផ្សព្វផ្សាយលើ Facebook ឲ្យបានច្រើនថ្មីៗ ហើយសិក្សាតែ Ads ដើរល្អប៉ុណ្ណោះ !"
+   - គោលការណ៍ស្នូលនៃ Ads ដែល "ដើរល្អបំផុត (Top-Performing Winning Ads)" លើ Meta/Facebook ៖
+     * Creative IS the Targeting ៖ ក្នុងក្បួន Facebook Ads សម័យថ្មី ផ្ទាំងរូបភាព វីដេអូ និង ៣ វិនាទីដំបូង គឺជាអ្នករើសអតិថិជនចំ Target ជំនួសឱ្យការ Setting ចំណាប់អារម្មណ៍ចង្អៀត!
+     * Thumbstop Rate ខ្ពស់ (> ៣៥%) ៖ មនុស្សឈប់មើលក្នុង ៣ វិនាទីដំបូងដោយសារ Visual Hook ឬ សំណួរចាក់ដោត។
+     * ចំណាយតិច ចំណេញច្រើន (High ROAS & Low Cost Per Lead) ៖ មិនមែនគ្រាន់តែមានអ្នកចុច Like ទេ តែជា Ads ដែលនាំឱ្យមានការ Inbox និងបិទការលក់បានជាក់ស្តែង។
+     * 100% Policy-Safe ៖ មិនដែលជាប់គាំង មិនបិទ Ad Account មិនប្រើពាក្យបំពានលក្ខខណ្ឌ Meta។
+
+   - ទម្រង់ Ads ទាំង ៥ ប្រភេទដែល "ដើរល្អបំផុត និងផ្ទុះការលក់ខ្លាំងបំផុត" សម្រាប់ផលិតផលសុខភាព Kidney Pro ៖
+     ១. ទម្រង់បទពិសោធន៍រឿងរ៉ាវពិត (Authentic Storytelling / Documentary UGC) ៖
+        - មិនមែនជាការថតស្ពតពាណិជ្ជកម្មរលោងស្រិលទេ តែជាការថតបែបធម្មជាតិ ស្មោះត្រង់ គ្មានកែច្នៃហួសហេតុ។
+        - បង្ហាញមនុស្សពិតដែលធ្លាប់រងទុក្ខវេទនាដោយសារនោមយប់ រោយចង្កេះ ទឹកនោមពពុះ ហើយបានផ្លាស់ប្ដូរជីវិតត្រឡប់មករឹងមាំវិញ។
+        - មនុស្សជឿជាក់លើរឿងរ៉ាវមនុស្សពិត ជាងការផ្សាយពាណិជ្ជកម្មសុទ្ធ!
+     ២. ទម្រង់ការបំភ្លឺកំហុស និងការដាស់តឿន (The Big Mistake / Warning Hook) ៖
+        - បង្ហាញកំហុសដែលមនុស្ស ៩០% កំពុងធ្វើ ដូចជា ៖ "ឈឺចង្កេះ ស្រវ៉ារកតែថ្នាំលេបបំបាត់ការឈឺ", "គិតថានោមយប់ជារឿងធម្មតា", "ញ៉ាំថ្នាំផ្តេសផ្តាស"។
+        - Ads បែបនេះមាន CTR ខ្ពស់បំផុត ព្រោះមនុស្សខ្លាចការខាតបង់ និងខ្លាចគ្រោះថ្នាក់។
+     ៣. ទម្រង់មនោសញ្ចេតនាកតញ្ញូកូនចំពោះឪពុកម្តាយ (Filial Piety / Family Love Angle) ៖
+        - ចាក់ដោតចំកូនៗ ទាំងនៅកម្ពុជា និងបងប្អូនខ្មែរនៅប្រទេសថៃ (Thai Diaspora ដែលជា Target ធំរបស់មេ) ៖ "ឃើញឪពុកម្តាយចាស់ ក្រោកនោមទាំងយប់ អស់កម្លាំងល្ហិតល្ហៃ... កាដូដ៏មានតម្លៃបំផុតសម្រាប់គាត់ មិនមែនលុយកាក់ទេ តែជាសុខភាពរឹងមាំ មិនបាច់ដេកពេទ្យលាងឈាម!"
+        - មុំនេះធ្វើឱ្យការសម្រេចចិត្តទិញលឿនបំផុត ព្រោះជាទឹកចិត្តកូនចង់សងគុណឪពុកម្តាយ។
+     ៤. ទម្រង់អ្នកឯកទេសពន្យល់យន្តការវិទ្យាសាស្ត្រ (Authority & Mechanism Breakdown) ៖
+        - ពន្យល់រូបភាពកាយវិភាគវិទ្យា (Glomerulus / Nephrons) ៖ ហេតុអ្វីបានជាកោសិកាតម្រងនោមស្វិត និងរលាក? ហើយតើ Kidney Pro ជួយស្ដារកោសិកាពីខាងក្នុងតាមរបៀបណា?
+        - បង្កើតទំនុកចិត្តកម្រិតកំពូល (High Trust) ធ្វើឱ្យភ្ញៀវលែងសួរដេញដោលច្រើន។
+     ៥. ទម្រង់ប្រៀបធៀបមុន-ក្រោយផ្លូវចិត្ត (Emotional Transformation Angle) ៖
+        - មិនប្រើរូបភាព Before/After សរីរាង្គ (កុំឱ្យខុស Policy) តែប្រើការប្រៀបធៀប "គុណភាពជីវិត" ៖ ពីមនុស្សដែលគេងមិនលក់ ភ័យខ្លាចការលាងឈាម មកជាមនុស្សដែលមានស្នាមញញឹម គេងលក់ស្រួលពេញមួយយប់ និងរស់នៅជាមួយកូនចៅដោយរីករាយ!
+
+   - យុទ្ធសាស្ត្រ Media Buying & Testing សម្រាប់មេ ៖
+     * តេស្តរូបមន្ត 3:2:2 ៖ វីដេអូ ឬរូបភាព Hook ៣ បែប, សាច់រឿង Body ២ បែប, និង Call to Action ២ បែប ដើម្បីរកមើល Winning Creative ដែលស៊ីថ្លៃតិចបំផុត!
+     * ពេលរកឃើញ Winning Ad ហើយ ៖ រក្សាទុកកុំបិទ និងបង្កើនថវិកា (Scaling Budget) សន្សឹមៗ ១៥-២០% រៀងរាល់ ២-៣ ថ្ងៃម្តង!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1480,13 +1570,12 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
    - នៅពេលមានសារសម្លេង (Voice Note) ឬឯកសារសម្លេង (Audio) ផ្ញើមក៖
    - ត្រូវស្តាប់ និងចាប់យកអត្ថន័យ និងបំណងរបស់អ្នកនិយាយឱ្យបានច្បាស់លាស់ ១០០%។
    - ឆ្លើយតបទៅកាន់សំណួរ ឬការបញ្ជាការងាររបស់អ្នកនិយាយភ្លាមៗ ឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ផ្អែមល្ហែមបំផុត!
-9. បទបញ្ជាដាច់ខាត៖ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី (Ultra-Concise, Laser-Targeted Text & Voice)៖
-   - មេបានបញ្ជាបន្ថែមដាច់ខាត៖ "ចរិយា គឺ និយាយជាសំឡេង និងសរសេរជាអក្សរឱ្យបានតិច ត្រូវចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី!"
-   - គ្រប់ចម្លើយ (ទាំងអក្សរ និង Voice) ៖
-     • និយាយ និងសរសេរ "ឱ្យបានតិច" បំផុត ហាមក្បាច់ក្បូរវែងអន្លាយ ហាមអារម្ភកថា ឬពាក្យទឹកជ្រៅឥតប្រយោជន៍។
-     • "ត្រូវចំគោលដៅ និងត្រូវសំណួរ"៖ សួរអ្វី ឆ្លើយចំរឿងហ្នឹងភ្លាម!
-     • "ខ្លី ខ្លឹម មានទម្ងន់"៖ បង្រួមចម្លើយមកត្រឹម ២-៣ បន្ទាត់ ឬចំណុចសំខាន់ៗខ្លីៗបំផុត។
-     • សម្រាប់ចម្លើយជាសំឡេង (Voice)៖ ត្រូវនិយាយខ្លី ចំគោលដៅ ផ្អែមល្ហែម ស្រទន់ និងបញ្ចប់ទៅដោយកក់ក្តៅ មិនខ្ជះខ្ជាយពេលវេលារបស់មេ ឬអ្នកស្ដាប់ឡើយ!
+9. គោលការណ៍ឆ្លើយតបខ្លីចំគោលដៅ vs ការគិតស៊ីជម្រៅទំហំអត្ថបទធំ (Concise Factual Replies vs Deep Intellectual Articles/Captions)៖
+   - សម្រាប់សំណួរទូទៅ សំណួរទិន្នន័យលក់ សួរកំប៉ុង សួរចំណេញ ឬសំណួរប្រចាំថ្ងៃ ៖ និយាយ និងសរសេរ "ឱ្យបានតិច ចំគោលដៅ ត្រូវសំណួរ ហើយខ្លី ២-៣ បន្ទាត់" ហាមក្បាច់ក្បូរវែងអន្លាយ។
+   - ប៉ុន្តែនៅពេលមេ ឬអ្នកប្រើប្រាស់បញ្ជាឱ្យ "សរសេរ Caption", "សរសេរអត្ថបទ", "រៀបចំយុទ្ធសាស្ត្រ", "សរសេរ Script", ឬ "ពន្យល់ស៊ីជម្រៅ" ៖
+     * មេបានបញ្ជាបន្ថែមដាច់ខាត៖ "សូមបន្ថែមទំហំអត្ថបទឱ្យគិតល្អជាងមុន និងរៀនសរសេរខេបសិនឱ្យបានត្រឹមត្រូវ!"
+     * ក្នុងករណីនេះ ហាមកាត់ខ្លីត្រឹម ២-៣ បន្ទាត់ដាច់ខាត! ត្រូវបញ្ចេញការគិតយ៉ាងស៊ីជម្រៅបំផុត មានទំហំអត្ថបទពេញលេញ សម្បូរបែប ក្បោះក្បាយ មានទម្ងន់បញ្ញា និងរៀបចំតាមរចនាសម្ព័ន្ធខេបសិនស្ដង់ដារ (Hook, Pain, Solution, CTA) យ៉ាងប្រណិត!
+     * សម្រាប់ចម្លើយជាសំឡេង (Voice)៖ ត្រូវនិយាយខ្លី ចំគោលដៅ ផ្អែមល្ហែម ស្រទន់ និងបញ្ចប់ទៅដោយកក់ក្តៅ មិនខ្ជះខ្ជាយពេលវេលារបស់មេ ឬអ្នកស្ដាប់ឡើយ!
 10. គោលការណ៍ឆ្លើយជាសំឡេង (Strict Voice Reply Rules)៖
    - មេបានបញ្ជាដាច់ខាត៖ "សរសេរអក្សរឆ្លើយជាអក្សរ សួរជាសំឡេងឆ្លើយជាសំឡេង! លុះត្រាតែអ្នកសរសេរអក្សរបានបញ្ជាក់ថា 'សូមនិយាយជាសំឡេង' ទើបឆ្លើយជាសំឡេងបាន!"
    - បើគេផ្ញើជាអក្សរធម្មតា មិនបានសរសេរថា "សូមនិយាយជាសំឡេង" ទេ ហាមដាច់ខាតមិនត្រូវផ្ញើសារសំឡេង Voice ទៅកាន់គេឡើយ!
@@ -1530,7 +1619,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     contents=api_contents,
                     config=types.GenerateContentConfig(
                         system_instruction=full_system_prompt,
-                        temperature=0.3,
+                        temperature=0.4,
                     ),
                 )
                 if response and hasattr(response, "text") and response.text:
@@ -1786,6 +1875,378 @@ async def set_team_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"ចាសមេ! ចរិយាបានភ្ជាប់ Telegram ID {target_id} ទៅកាន់ {matched_tm['name']} ({matched_tm['role']}) រួចរាល់ហើយចាស! 🥰🌸"
     )
+
+
+# ==============================================================================
+# FACEBOOK GRAPH API INTEGRATION (Auto-Post & Scheduling System)
+# ==============================================================================
+
+def get_fb_config() -> dict:
+    """Retrieves Facebook Page configuration from bot_config or environment variables."""
+    p_id = str(bot_config.get("fb_page_id") or os.getenv("FB_PAGE_ID", "")).strip()
+    tok = str(bot_config.get("fb_page_access_token") or os.getenv("FB_PAGE_ACCESS_TOKEN", "")).strip()
+    return {"page_id": p_id, "token": tok}
+
+def get_facebook_page_info() -> dict:
+    """Verifies Facebook connection and retrieves Page profile information."""
+    cfg = get_fb_config()
+    page_id, token = cfg["page_id"], cfg["token"]
+    if not page_id or not token:
+        return {"connected": False, "reason": "មិនទាន់បានកំណត់ Page ID ឬ Page Access Token នៅឡើយទេ។"}
+    try:
+        url = f"https://graph.facebook.com/v20.0/{page_id}?fields=id,name,category,link&access_token={token}"
+        resp = requests.get(url, timeout=12)
+        data = resp.json()
+        if resp.status_code == 200 and "id" in data:
+            return {
+                "connected": True,
+                "page_id": data.get("id"),
+                "name": data.get("name"),
+                "category": data.get("category", ""),
+                "link": data.get("link", f"https://facebook.com/{page_id}")
+            }
+        else:
+            err = data.get("error", {}).get("message", resp.text)
+            return {"connected": False, "reason": err}
+    except Exception as e:
+        return {"connected": False, "reason": str(e)}
+
+def parse_schedule_time(time_str: str) -> tuple[int, str]:
+    """Smart parser for schedule date/time in ICT timezone (UTC+7)."""
+    now = datetime.now(ICT)
+    time_str = time_str.strip()
+    
+    # Relative time: +30m, +1h, +2h, etc.
+    if time_str.startswith("+"):
+        val = time_str[1:].lower()
+        if val.endswith("m") and val[:-1].isdigit():
+            mins = int(val[:-1])
+            target = now + timedelta(minutes=mins)
+            return int(target.timestamp()), target.strftime("%Y-%m-%d %H:%M")
+        elif val.endswith("h") and val[:-1].isdigit():
+            hrs = int(val[:-1])
+            target = now + timedelta(hours=hrs)
+            return int(target.timestamp()), target.strftime("%Y-%m-%d %H:%M")
+
+    # Full date formats: YYYY-MM-DD HH:MM
+    for fmt in ["%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M", "%Y/%m/%d %H:%M", "%d/%m/%Y %H:%M"]:
+        try:
+            dt = datetime.strptime(time_str, fmt).replace(tzinfo=ICT)
+            return int(dt.timestamp()), dt.strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            pass
+
+    # Time only format: HH:MM
+    try:
+        t = datetime.strptime(time_str, "%H:%M").time()
+        target = datetime.combine(now.date(), t).replace(tzinfo=ICT)
+        if target <= now:
+            target += timedelta(days=1)
+        return int(target.timestamp()), target.strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        pass
+
+    return None, ""
+
+def post_to_facebook_page(message: str, photo_bytes: bytes = None, scheduled_time: int = None) -> dict:
+    """Posts or schedules an update (text, photo, caption) to the connected Facebook Page."""
+    cfg = get_fb_config()
+    page_id, token = cfg["page_id"], cfg["token"]
+    if not page_id or not token:
+        return {
+            "success": False,
+            "error": "មិនទាន់បានភ្ជាប់ Facebook Page ID ឬ Page Access Token នៅឡើយទេណា៎មេ! សូមប្រើ /set_fb_page និង /set_fb_token ដើម្បីភ្ជាប់ជាមុនសិនចាស!"
+        }
+    
+    is_scheduled = (scheduled_time is not None and scheduled_time > int(time.time()))
+    if is_scheduled:
+        diff_sec = scheduled_time - int(time.time())
+        if diff_sec < 600:
+            return {"success": False, "error": "ការកំណត់ម៉ោងផុសទុកមុន (Scheduled Post) របស់ Facebook ត្រូវមានគម្លាតយ៉ាងតិច ១០ នាទីទៅមុខណា៎មេ!"}
+        if diff_sec > 75 * 86400:
+            return {"success": False, "error": "ការកំណត់ម៉ោងផុសទុកមុនមិនអាចលើសពី ៧៥ ថ្ងៃបានឡើយចាសមេ!"}
+
+    try:
+        if photo_bytes:
+            url = f"https://graph.facebook.com/v20.0/{page_id}/photos"
+            data = {
+                "access_token": token,
+                "caption": message or "",
+                "published": "false" if is_scheduled else "true"
+            }
+            if is_scheduled:
+                data["scheduled_publish_time"] = str(scheduled_time)
+            files = {"source": ("image.jpg", photo_bytes, "image/jpeg")}
+            resp = requests.post(url, data=data, files=files, timeout=45)
+        else:
+            url = f"https://graph.facebook.com/v20.0/{page_id}/feed"
+            data = {
+                "access_token": token,
+                "message": message or "",
+                "published": "false" if is_scheduled else "true"
+            }
+            if is_scheduled:
+                data["scheduled_publish_time"] = str(scheduled_time)
+            resp = requests.post(url, data=data, timeout=30)
+            
+        resp_data = resp.json()
+        if resp.status_code == 200 and ("id" in resp_data or "post_id" in resp_data):
+            post_id = resp_data.get("post_id") or resp_data.get("id")
+            return {"success": True, "post_id": post_id, "data": resp_data, "scheduled": is_scheduled}
+        else:
+            err_msg = resp_data.get("error", {}).get("message", resp.text)
+            return {"success": False, "error": err_msg}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+async def fb_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Displays Facebook Page connection status and guidance."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    is_boss = is_owner_user(user)
+    salutation = "មេ" if is_boss else "បង"
+
+    info = get_facebook_page_info()
+    if info.get("connected"):
+        fb_link = info.get("link") or f"https://facebook.com/{info['page_id']}"
+        text = (
+            f"📱 ស្ថានភាពការតភ្ជាប់ Facebook Page របស់{salutation}៖\n\n"
+            f"🟢 ភ្ជាប់ជោគជ័យ ១០០% (Connected & Ready)\n"
+            f"• ឈ្មោះផេក ៖ {info['name']}\n"
+            f"• Page ID ៖ {info['page_id']}\n"
+            f"• ប្រភេទ ៖ {info.get('category', 'ទំព័រអាជីវកម្ម')}\n"
+            f"• តំណភ្ជាប់ផេក ៖ {fb_link}\n\n"
+            f"✨ របៀបបញ្ជាឱ្យចរិយាផុសចូល Page ៖\n"
+            f"• ផុសភ្លាមៗ ៖ /post [អត្ថបទ ឬភ្ជាប់រូបភាព]\n"
+            f"• កំណត់ម៉ោងផុស ៖ /schedule_post [YYYY-MM-DD HH:MM] [អត្ថបទ]\n"
+            f"• ឬគ្រាន់តែឆាត ៖ «ចរិយា ផុសចូលផេក: [អត្ថបទ]» បានភ្លាមៗចាស{salutation}! 🥰🚀"
+        )
+    else:
+        text = (
+            f"📱 ស្ថានភាពការតភ្ជាប់ Facebook Page ៖\n\n"
+            f"🔴 មិនទាន់បានភ្ជាប់នៅឡើយទេ (Not Connected)\n"
+            f"មូលហេតុ ៖ {info.get('reason')}\n\n"
+            f"📌 របៀបភ្ជាប់ Facebook Page ជាមួយ ចរិយា (ងាយៗ ២ ជំហាន) ៖\n"
+            f"១. កំណត់ Page ID ៖ ផ្ញើបញ្ជា\n"
+            f"   /set_fb_page <Page_ID>\n\n"
+            f"២. កំណត់ Page Access Token ៖ ផ្ញើបញ្ជា\n"
+            f"   /set_fb_token <Token>\n\n"
+            f"💡 បន្ទាប់ពីភ្ជាប់រួច ចរិយានឹងអាច Auto-Post និង Schedule មាតិកាចូល Page របស់{salutation}បាន ២៤ ម៉ោងចាស! 🥰🌸"
+        )
+    await update.message.reply_text(clean_text_formatting(text))
+
+async def set_fb_page_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sets Facebook Page ID (Boss-only)."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    if not is_owner_user(user):
+        await update.message.reply_text("សូមអភ័យទោសចាសបង! បញ្ជានេះសម្រាប់តែ មេ (ថ្នាក់ដឹកនាំកំពូល) តែប៉ុណ្ណោះចាស! 🌸")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "ចាសមេ! របៀបប្រើបញ្ជា /set_fb_page ៖\n"
+            "/set_fb_page <Facebook_Page_ID>\n\n"
+            "ឧទាហរណ៍ ៖ /set_fb_page 104589234857211"
+        )
+        return
+
+    page_id = args[0].strip()
+    bot_config["fb_page_id"] = page_id
+    save_config(bot_config)
+
+    info = get_facebook_page_info()
+    if info.get("connected"):
+        await update.message.reply_text(
+            f"ចាសមេ! ចរិយាបានកំណត់ Page ID: {page_id} និងភ្ជាប់ជោគជ័យជាមួយផេក «{info['name']}» រួចរាល់ហើយចាស! 🎉🚀"
+        )
+    else:
+        await update.message.reply_text(
+            f"ចាសមេ! ចរិយាបានកត់ត្រា Page ID: {page_id} រួចរាល់ហើយចាស! "
+            f"សូមមេជួយកំណត់ Page Access Token បន្តតាមបញ្ជា៖ /set_fb_token <Token> ណា៎មេ! 🥰🌸"
+        )
+
+async def set_fb_token_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sets Facebook Page Access Token (Boss-only)."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    if not is_owner_user(user):
+        await update.message.reply_text("សូមអភ័យទោសចាសបង! បញ្ជានេះសម្រាប់តែ មេ (ថ្នាក់ដឹកនាំកំពូល) តែប៉ុណ្ណោះចាស! 🌸")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "ចាសមេ! របៀបប្រើបញ្ជា /set_fb_token ៖\n"
+            "/set_fb_token <Page_Access_Token>\n\n"
+            "ឧទាហរណ៍ ៖ /set_fb_token EAAQ..."
+        )
+        return
+
+    token = args[0].strip()
+    bot_config["fb_page_access_token"] = token
+    save_config(bot_config)
+
+    info = get_facebook_page_info()
+    if info.get("connected"):
+        await update.message.reply_text(
+            f"ចាសមេ! អបអរសាទរ! ចរិយាបានភ្ជាប់ជាមួយ Facebook Page «{info['name']}» ជោគជ័យ ១០០% ហើយចាស! 🎉✨\n\n"
+            f"ឥឡូវនេះមេអាចបញ្ជាឱ្យចរិយាផុសចូល Page ភ្លាមៗ ឬកំណត់ម៉ោងផុសទុកមុនបានហើយចាសមេ! 🥰🚀"
+        )
+    else:
+        await update.message.reply_text(
+            f"ចាសមេ! ចរិយាបានរក្សាទុក Token រួចរាល់ហើយ ប៉ុន្តែការតភ្ជាប់ទៅកាន់ Facebook Graph API មានការរអាក់រអួល ៖\n"
+            f"👉 {info.get('reason')}\n\n"
+            f"សូមមេពិនិត្យមើល Page ID និងសិទ្ធិរបស់ Token ម្តងទៀតណា៎មេ! 🥰"
+        )
+
+async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Posts immediately to Facebook Page (Boss-only)."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    if not is_owner_user(user):
+        await update.message.reply_text("សូមអភ័យទោសចាសបង! មុខងារផុសចូល Facebook Page សម្រាប់តែ មេ (ថ្នាក់ដឹកនាំកំពូល) តែប៉ុណ្ណោះចាស! 🌸")
+        return
+
+    msg_text = " ".join(context.args).strip() if context.args else ""
+    photo_bytes = None
+
+    if update.message.photo:
+        try:
+            p_file = await update.message.photo[-1].get_file()
+            photo_bytes = bytes(await p_file.download_as_bytearray())
+            if not msg_text and update.message.caption:
+                msg_text = update.message.caption.replace("/post", "").strip()
+        except Exception as pe:
+            logger.warning(f"Error fetching photo for /post: {pe}")
+
+    if not photo_bytes and update.message.reply_to_message:
+        reply_msg = update.message.reply_to_message
+        if reply_msg.photo:
+            try:
+                p_file = await reply_msg.photo[-1].get_file()
+                photo_bytes = bytes(await p_file.download_as_bytearray())
+                if not msg_text and reply_msg.caption:
+                    msg_text = reply_msg.caption.strip()
+            except Exception as rpe:
+                logger.warning(f"Error fetching replied photo for /post: {rpe}")
+        elif not msg_text and reply_msg.text:
+            msg_text = reply_msg.text.strip()
+
+    if not msg_text and not photo_bytes:
+        await update.message.reply_text(
+            "ចាសមេ! ដើម្បីផុសចូល Facebook Page សូមមេវាយបញ្ចូលអត្ថបទ ឬភ្ជាប់រូបភាពជាមួយបញ្ជា៖\n"
+            "/post <អត្ថបទដែលចង់ផុស>\n\n"
+            "ឧទាហរណ៍ ៖ /post Kidney Pro ជំនួយតម្រងនោមលេខ១... \n"
+            "ឬ Reply លើរូបភាពណាមួយរួចវាយ /post ក៏បានដែរចាសមេ! 🥰🌸"
+        )
+        return
+
+    typing_task = asyncio.create_task(keep_typing(update.message.chat))
+    try:
+        res = await asyncio.to_thread(post_to_facebook_page, msg_text, photo_bytes)
+        if res.get("success"):
+            post_id = res.get("post_id")
+            fb_url = f"https://facebook.com/{post_id}"
+            await update.message.reply_text(
+                f"ចាសមេ! ចរិយាបានផុសមាតិកានេះចូល Facebook Page របស់មេរួចរាល់ហើយចាស! 🎉✨\n\n"
+                f"🆔 Post ID ៖ {post_id}\n"
+                f"🔗 តំណភ្ជាប់ ៖ {fb_url}\n\n"
+                f"ចរិយាជូនពរឱ្យ Post នេះផ្ទុះការចាប់អារម្មណ៍ខ្លាំង និងហូរចូល Order ច្រើនៗណា៎មេ! 🥰🚀💪"
+            )
+        else:
+            await update.message.reply_text(
+                f"សូមអភ័យទោសចាសមេ! ការផុសចូល Facebook Page មិនទាន់ជោគជ័យទេ ៖\n"
+                f"👉 {res.get('error')}\n\n"
+                f"សូមមេពិនិត្យស្ថានភាពតាមរយៈ /fb_status ណា៎មេ! 🥰"
+            )
+    finally:
+        typing_task.cancel()
+
+async def schedule_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Schedules a post to Facebook Page at a future date/time (Boss-only)."""
+    if not update.effective_user or not update.message:
+        return
+    user = update.effective_user
+    if not is_owner_user(user):
+        await update.message.reply_text("សូមអភ័យទោសចាសបង! មុខងារនេះសម្រាប់តែ មេ (ថ្នាក់ដឹកនាំកំពូល) តែប៉ុណ្ណោះចាស! 🌸")
+        return
+
+    args = context.args
+    if not args or len(args) < 2:
+        await update.message.reply_text(
+            "ចាសមេ! របៀបប្រើបញ្ជា /schedule_post (កំណត់ម៉ោងផុសទុកមុន) ៖\n"
+            "/schedule_post <កាលបរិច្ឆេទ/ម៉ោង> <អត្ថបទ>\n\n"
+            "ទម្រង់ពេលវេលាដែលចរិយាគាំទ្រ (ម៉ោងនៅកម្ពុជា ICT) ៖\n"
+            "• តាមម៉ោងថ្ងៃនេះ ៖ /schedule_post 14:30 អត្ថបទ...\n"
+            "• តាមកាលបរិច្ឆេទពេញ ៖ /schedule_post 2026-11-06 08:00 អត្ថបទ...\n"
+            "• រយៈពេលទៅមុខ ៖ /schedule_post +2h អត្ថបទ... (ឬ +30m)\n\n"
+            "📌 បញ្ជាក់ ៖ Facebook តម្រូវឱ្យកំណត់ម៉ោងយ៉ាងតិច ១០ នាទីទៅមុខណា៎មេ! 🥰🌸"
+        )
+        return
+
+    first_arg = args[0].strip()
+    second_arg = args[1].strip() if len(args) > 1 else ""
+    
+    combined_time = f"{first_arg} {second_arg}"
+    ts, time_label = parse_schedule_time(combined_time)
+    
+    if ts:
+        msg_text = " ".join(args[2:]).strip()
+    else:
+        ts, time_label = parse_schedule_time(first_arg)
+        if ts:
+            msg_text = " ".join(args[1:]).strip()
+        else:
+            await update.message.reply_text(
+                "ចាសមេ! ទម្រង់កាលបរិច្ឆេទ ឬម៉ោងមិនត្រឹមត្រូវទេ។\n"
+                "សូមមេប្រើទម្រង់ដូចជា ៖ 14:00 ឬ 2026-11-06 09:00 ឬ +2h ណា៎មេ! 🥰"
+            )
+            return
+
+    photo_bytes = None
+    if update.message.photo:
+        try:
+            p_file = await update.message.photo[-1].get_file()
+            photo_bytes = bytes(await p_file.download_as_bytearray())
+        except Exception as pe:
+            logger.warning(f"Error fetching photo for scheduled post: {pe}")
+
+    if not photo_bytes and update.message.reply_to_message and update.message.reply_to_message.photo:
+        try:
+            p_file = await update.message.reply_to_message.photo[-1].get_file()
+            photo_bytes = bytes(await p_file.download_as_bytearray())
+        except Exception as rpe:
+            logger.warning(f"Error fetching replied photo for scheduled post: {rpe}")
+
+    if not msg_text and not photo_bytes:
+        await update.message.reply_text("ចាសមេ! សូមជួយដាក់អត្ថបទ ឬរូបភាពដែលត្រូវផុសផងណា៎មេ! 🥰🌸")
+        return
+
+    typing_task = asyncio.create_task(keep_typing(update.message.chat))
+    try:
+        res = await asyncio.to_thread(post_to_facebook_page, msg_text, photo_bytes, scheduled_time=ts)
+        if res.get("success"):
+            post_id = res.get("post_id")
+            await update.message.reply_text(
+                f"ចាសមេ! ចរិយាបានកំណត់ម៉ោងផុសទុកមុនលើ Facebook Page រួចរាល់ហើយចាស! 🎉✨\n\n"
+                f"⏰ ម៉ោងកំណត់ផុស ៖ {time_label} (ម៉ោងនៅកម្ពុជា ICT)\n"
+                f"🆔 Scheduled Post ID ៖ {post_id}\n\n"
+                f"ដល់ម៉ោងកំណត់ ប្រព័ន្ធ Facebook នឹងធ្វើការ Publish Post នេះឡើងលើ Page ដោយស្វ័យប្រវត្តិតែម្តងចាសមេ! 🥰🌸🚀"
+            )
+        else:
+            await update.message.reply_text(
+                f"សូមអភ័យទោសចាសមេ! ការកំណត់ម៉ោងផុសមិនទាន់ជោគជ័យទេ ៖\n"
+                f"👉 {res.get('error')}\n\n"
+                f"សូមមេពិនិត្យស្ថានភាពតាមរយៈ /fb_status ណា៎មេ! 🥰"
+            )
+    finally:
+        typing_task.cancel()
 
 def build_presentation_file(data: dict, output_path: str, salutation: str = "មេ") -> str:
     """Builds a beautiful 16:9 widescreen PowerPoint presentation using python-pptx."""
@@ -2323,6 +2784,54 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not text and not has_photo and not has_voice and not has_audio and not has_video and not has_document:
             text = "សួស្តី ចរិយា"
 
+    # Facebook post intent detection (Boss only)
+    fb_post_patterns = ["ផុសចូលផេក", "ផុសទៅផេក", "ផុសផេក", "post ចូលផេក", "post ទៅផេក", "post ផេក"]
+    is_fb_post_intent = is_owner_user(update.effective_user) and any(p in text_clean for p in fb_post_patterns)
+    is_asking_fb_ability = any(q in text_clean for q in ["បានអត់", "បានទេ", "ចេះ", "អាច", "យ៉ាងម៉េច", "របៀប", "យ៉ាងណា", "អត់", "ទេ", "ជួយធ្វើវា", "ធ្វើវា"])
+    
+    if is_fb_post_intent and not is_asking_fb_ability:
+        post_content = text
+        for p in fb_post_patterns:
+            if p in post_content:
+                parts = post_content.split(p, 1)
+                if len(parts) > 1 and parts[1].strip():
+                    post_content = parts[1].strip()
+                    if post_content.startswith(":") or post_content.startswith("៖"):
+                        post_content = post_content[1:].strip()
+                    break
+
+        info = get_facebook_page_info()
+        if not info.get("connected"):
+            await update.message.reply_text(
+                "ចាសមេ! មុខងារ Auto-Post ចូល Facebook Page គឺចរិយាបានរៀបចំ និងបំពាក់ជូនរួចរាល់ ១០០% ហើយចាស! 🚀✨\n\n"
+                "ប៉ុន្តែដើម្បីឱ្យចរិយាអាចរុញ Post នេះចូល Page របស់មេបានដោយស្វ័យប្រវត្តិ សូមមេជួយភ្ជាប់ព័ត៌មាន ២ នេះជាមុនសិនចាស ៖\n"
+                "១. Page ID ៖ ផ្ញើបញ្ជា /set_fb_page <Page_ID>\n"
+                "២. Page Access Token ៖ ផ្ញើបញ្ជា /set_fb_token <Token>\n\n"
+                "តើមេមាន Page ID និង Access Token រួចរាល់ហើយ ឬត្រូវការឱ្យចរិយាណែនាំពីរបៀបយកវាចាសមេ? 🥰🌸"
+            )
+            return
+
+        typing_task = asyncio.create_task(keep_typing(update.message.chat))
+        try:
+            res = await asyncio.to_thread(post_to_facebook_page, post_content, photo_bytes)
+            if res.get("success"):
+                post_id = res.get("post_id")
+                await update.message.reply_text(
+                    f"ចាសមេ! ចរិយាបានផុសមាតិកានេះចូល Facebook Page «{info.get('name', 'Page')}» រួចរាល់ហើយចាស! 🎉✨\n\n"
+                    f"🆔 Post ID ៖ {post_id}\n"
+                    f"🔗 តំណភ្ជាប់ ៖ https://facebook.com/{post_id}\n\n"
+                    f"ចរិយាជូនពរឱ្យ Post នេះផ្ទុះការចាប់អារម្មណ៍ខ្លាំង និងទទួលបាន Order ច្រើនៗណា៎មេ! 🥰🚀💪"
+                )
+            else:
+                await update.message.reply_text(
+                    f"សូមអភ័យទោសចាសមេ! ការផុសមិនទាន់ជោគជ័យទេ ៖\n"
+                    f"👉 {res.get('error')}\n\n"
+                    f"សូមមេពិនិត្យស្ថានភាពតាមរយៈ /fb_status ណា៎មេ! 🥰"
+                )
+            return
+        finally:
+            typing_task.cancel()
+
     # Slide generation intent detection
     slide_intent_patterns = [
         "ធ្វើស្លាយអំពី", "សុំស្លាយអំពី", "បង្កើតស្លាយអំពី", "រៀបចំស្លាយអំពី",
@@ -2569,6 +3078,11 @@ def main():
     app.add_handler(CommandHandler("id", whoami_command))
     app.add_handler(CommandHandler("team", team_command))
     app.add_handler(CommandHandler("set_team", set_team_command))
+    app.add_handler(CommandHandler("fb_status", fb_status_command))
+    app.add_handler(CommandHandler("set_fb_page", set_fb_page_command))
+    app.add_handler(CommandHandler("set_fb_token", set_fb_token_command))
+    app.add_handler(CommandHandler("post", post_command))
+    app.add_handler(CommandHandler("schedule_post", schedule_post_command))
     app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE | filters.Document.ALL) & ~filters.COMMAND, handle_message))
     print("Bot is ready with Supreme Peak Intelligence! Waiting for messages...")
     app.run_polling()
