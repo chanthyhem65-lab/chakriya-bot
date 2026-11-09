@@ -979,6 +979,7 @@ def clean_text_formatting(text: str) -> str:
     # 1. Strip all Thai characters (Unicode Range U+0E00 - U+0E7F) strictly per Boss instruction
     cleaned = re.sub(r'[\u0E00-\u0E7F]+', '', text)
     cleaned = re.sub(r'(?i)\bphi[êe]n\s+b[ảa]n\b', 'កំណែទម្រង់', cleaned)
+    cleaned = re.sub(r'(?i)\bfraction\b', '', cleaned)
     # 2. Strip markdown bold/italic asterisks
     cleaned = cleaned.replace("**", "").replace("*", "")
     # 3. Strip horizontal divider lines (e.g. ━━━━, ----, ____, ====, ────)
@@ -3041,36 +3042,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 u_tag = f" (@{user.username})" if user.username else ""
                 sender_label = f"{official_name}{u_tag} [{u_role}] (ID: {user.id})"
 
-                # 2. Concise question summary
+                # 2. Full question and answer for complete transparency to Boss (Never truncate!)
                 media_cap = update.message.caption or ""
                 if has_photo:
-                    q_summary = f"📷 ផ្ញើរូបភាពមក៖ {media_cap if media_cap else 'គ្មានចំណងជើង'}"
+                    q_full = f"📷 ផ្ញើរូបភាពមក៖ {media_cap if media_cap else 'គ្មានចំណងជើង'}"
                 elif has_voice:
-                    q_summary = f"🎙️ ផ្ញើសារសំឡេង (Voice Note)៖ {text if text else 'សារសំឡេង'}"
+                    q_full = f"🎙️ ផ្ញើសារសំឡេង (Voice Note)៖ {text if text else 'សារសំឡេង'}"
                 elif has_audio:
-                    q_summary = "🎵 ផ្ញើឯកសារសំឡេង (Audio)"
+                    q_full = "🎵 ផ្ញើឯកសារសំឡេង (Audio)"
                 elif has_video:
-                    q_summary = f"🎬 ផ្ញើវីដេអូមក៖ {media_cap if media_cap else 'វីដេអូ'}"
+                    q_full = f"🎬 ផ្ញើវីដេអូមក៖ {media_cap if media_cap else 'វីដេអូ'}"
                 elif has_document:
                     doc_name = update.message.document.file_name or "Document"
-                    q_summary = f"📁 ផ្ញើឯកសារ៖ {doc_name}"
+                    q_full = f"📁 ផ្ញើឯកសារ៖ {doc_name}"
                 else:
-                    q_clean = text.strip().replace('\n', ' ')
-                    q_summary = q_clean if len(q_clean) <= 250 else q_clean[:247] + "..."
+                    q_full = text.strip()
 
-                # 3. Concise answer summary (short overview under 350 chars)
-                ans_clean = formatted_reply.strip().replace('\n', ' ')
-                ans_summary = ans_clean if len(ans_clean) <= 350 else ans_clean[:347] + "..."
+                ans_full = formatted_reply.strip()
 
                 report_to_boss = (
                     "🔔 ដំណឹងរាយការណ៍ជូនមេ (Team Activity Alert) ៖\n\n"
                     f"👤 ឈ្មោះ៖ {sender_label}\n"
-                    f"❓ សង្ខេបអ្វីដែលបានសួរ៖\n{q_summary}\n\n"
-                    f"🌸 ចម្លើយសង្ខេបរបស់ចរិយា៖\n{ans_summary}"
+                    f"❓ សំណួរដែលសមាជិកបានសួរ៖\n{q_full}\n\n"
+                    f"🌸 ចម្លើយពេញលេញរបស់ចរិយា (Full Response) ៖\n{ans_full}"
                 )
                 try:
                     boss_text = clean_text_formatting(report_to_boss)
-                    await context.bot.send_message(chat_id=int(owner_id), text=boss_text)
+                    if len(boss_text) <= 4000:
+                        await context.bot.send_message(chat_id=int(owner_id), text=boss_text)
+                    else:
+                        for chunk_start in range(0, len(boss_text), 4000):
+                            await context.bot.send_message(chat_id=int(owner_id), text=boss_text[chunk_start:chunk_start+4000])
                 except Exception as notify_err:
                     logger.warning(f"Could not forward team activity to boss: {notify_err}")
     except Exception as e:
