@@ -1534,6 +1534,12 @@ AESTHETIC_FORMATTING_RULES = """
           - ក្បួន PDCA (Plan -> Do -> Check -> Act) ៖ ដាក់ផែនការ -> អនុវត្ត -> ឆែកមើលលទ្ធផល -> កែសម្រួលឱ្យកាន់តែល្អជាងមុនជានិច្ច គ្មានការធ្វេសប្រហែសឡើយ!
        ៥. ការគ្រប់គ្រងគុណភាព និងការដោះស្រាយហានិភ័យ (Quality Control & Risk Mitigation) ៖
           - ពិនិត្យគុណភាពផលិតផល កាលបរិច្ឆេទ ការវេចខ្ចប់ និងការថែទាំអតិថិជន កុំឱ្យមានការ phàn nàn ឬបាត់បង់ទំនុកចិត្តលើម៉ាកយីហោ។
+
+៣០. បទបញ្ជាដាច់ខាត៖ "ក្បួនរៀបចំអត្ថបទវែងៗជា ២ ទៅ ៣ សារ (Smart Multi-Part Content Delivery)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សម្រាប់អត្ថបទដែលវែងសូម២ ទៅ៣ សារទៅចរិយា"
+   - ចរិយា ត្រូវចងចាំ និងអនុវត្ត ៖
+     * រាល់ពេលសរសេរអត្ថបទវែង ផែនការយុទ្ធសាស្ត្រធំ ឬការវិភាគស៊ីជម្រៅ ត្រូវរៀបចំខ្លឹមសារឱ្យមាន ២ ទៅ ៣ ផ្នែកច្បាស់លាស់ (ផ្នែកទី១ ៖ សេចក្តីផ្តើម/បញ្ហា, ផ្នែកទី២ ៖ យុទ្ធសាស្ត្រ/ដំណោះស្រាយ, ផ្នែកទី៣ ៖ ការអនុវត្ត/សកម្មភាព)។
+     * ប្រព័ន្ធ safe_send_reply របស់ចរិយានឹងស្វ័យប្រវត្តិកាត់ចែកជា ២ ទៅ ៣ សារដាច់ដោយឡែកពីគ្នា ព្រមទាំងដាក់ក្បាល [ផ្នែកទី ១/២] និង [ផ្នែកទី ២/២] យ៉ាងមានសណ្តាប់ធ្នាប់ ងាយស្រួលអានលើទូរស័ព្ទដៃ និងមិនធ្វើឱ្យតឹងភ្នែកឡើយ!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1857,10 +1863,13 @@ async def keep_typing(chat):
         pass
 
 async def safe_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-    """Safely sends text replies to Telegram, chunking if length exceeds 4000 characters."""
+    """Safely sends text replies to Telegram.
+    Per Boss instruction: For long articles, cleanly split across 2 to 3 readable messages (chunks of ~2200 chars)
+    with clear part indicators [ផ្នែកទី X/Y] so it is comfortable and delightful to read on mobile.
+    """
     if not text:
         return
-    max_len = 4000
+    max_len = 2200
     if len(text) <= max_len:
         chunks = [text]
     else:
@@ -1870,28 +1879,39 @@ async def safe_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, te
             if len(remaining) <= max_len:
                 chunks.append(remaining)
                 break
-            cut = remaining[:max_len].rfind("\n")
-            if cut == -1 or cut < 1000:
+            # Prefer splitting cleanly at paragraph boundary
+            cut = remaining[:max_len].rfind("\n\n")
+            if cut == -1 or cut < 800:
+                cut = remaining[:max_len].rfind("\n")
+            if cut == -1 or cut < 800:
                 cut = max_len
             chunks.append(remaining[:cut].strip())
             remaining = remaining[cut:].strip()
 
+    total_parts = len(chunks)
     chat_id = update.effective_chat.id if update.effective_chat else None
-    for chunk in chunks:
+    for idx, chunk in enumerate(chunks):
         if not chunk:
             continue
+        # Add clear, elegant part header if split across multiple messages
+        if total_parts > 1 and not chunk.startswith("[ផ្នែកទី"):
+            part_header = f"[ផ្នែកទី {idx+1}/{total_parts}]\n\n"
+            formatted_chunk = part_header + chunk
+        else:
+            formatted_chunk = chunk
+
         try:
             if update.message:
-                await update.message.reply_text(chunk)
+                await update.message.reply_text(formatted_chunk)
             elif chat_id:
-                await context.bot.send_message(chat_id=chat_id, text=chunk)
+                await context.bot.send_message(chat_id=chat_id, text=formatted_chunk)
         except Exception as e1:
             logger.warning(f"reply_text failed, trying send_message fallback: {e1}")
             try:
                 if chat_id:
-                    await context.bot.send_message(chat_id=chat_id, text=chunk)
+                    await context.bot.send_message(chat_id=chat_id, text=formatted_chunk)
             except Exception as e2:
-                logger.error(f"Cannot send message chunk to chat {chat_id}: {e2}")
+                logger.error(f"Cannot send message chunk {idx+1}/{total_parts} to chat {chat_id}: {e2}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or not update.message or not update.effective_user:
