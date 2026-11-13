@@ -60,7 +60,9 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview", "gemini-3.6-flash"]
+AVAILABLE_MODELS = ["gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"]
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
@@ -1093,6 +1095,25 @@ def get_user_memories(user_id: str) -> list:
     all_memories = load_all_memories()
     return all_memories.get(str(user_id), [])
 
+def get_boss_golden_rules() -> list:
+    try:
+        memories = load_all_memories()
+        return memories.get("boss_golden_rules", [])
+    except Exception:
+        return []
+
+def add_boss_golden_rule(rule: str):
+    try:
+        memories = load_all_memories()
+        if "boss_golden_rules" not in memories:
+            memories["boss_golden_rules"] = []
+        if rule not in memories["boss_golden_rules"]:
+            memories["boss_golden_rules"].append(rule)
+            save_all_memories(memories)
+            logger.info(f"Learned and saved Boss Golden Rule: {rule}")
+    except Exception as e:
+        logger.warning(f"Error saving boss golden rule: {e}")
+
 def add_user_memory(user_id: str, fact: str):
     all_memories = load_all_memories()
     uid = str(user_id)
@@ -1113,6 +1134,29 @@ conversation_histories = {}
 MAX_HISTORY = 10
 
 def check_and_extract_memory(user_id: str, text: str):
+    is_boss_user = (str(user_id) == str(BOSS_TELEGRAM_ID))
+    
+    # 1. Autonomous Continuous Self-Evolution from Boss Directives & Teachings
+    if is_boss_user and len(text.strip()) > 4:
+        directive_prompt = (
+            "Analyze this message from the Company Leader/Boss to his AI Executive Chief of Staff (Chakriya).\n"
+            f"Message: \"{text}\"\n"
+            "Determine if the Boss is teaching a new skill, setting a behavioral directive, giving feedback, or stating a business/leadership rule.\n"
+            "If YES, extract ONE short, permanent, authoritative directive in Khmer (without asterisks, quotes, or conversational fluff).\n"
+            "If NO (just greeting, casual remark, or normal question), output NONE."
+        )
+        try:
+            res = ai_client.models.generate_content(
+                model="gemini-3.5-flash-lite",
+                contents=directive_prompt,
+            )
+            rule_extracted = clean_text_formatting(res.text.strip()) if res.text else "NONE"
+            if rule_extracted and "NONE" not in rule_extracted and len(rule_extracted) > 6:
+                add_boss_golden_rule(rule_extracted)
+        except Exception as e:
+            logger.warning(f"Boss directive extraction error: {e}")
+
+    # 2. General user memory extraction
     memory_triggers = ["ចាំទុក", "កត់ទុក", "កត់ត្រា", "កុំភ្លេច", "remember", "ខ្ញុំចូលចិត្ត", "ខ្ញុំមិនចូលចិត្ត", "ខ្ញុំឈ្មោះ", "ខ្ញុំជា"]
     has_trigger = any(trig in text.lower() for trig in memory_triggers)
     
@@ -1549,6 +1593,13 @@ AESTHETIC_FORMATTING_RULES = """
      * សមត្ថភាពនិយាយសំឡេងត្រូវបានពង្រីករហូតដល់ ៣,៨០០ តួអក្សរ (ស្មើនឹងការបកស្រាយសំឡេងប្រមាណ ៣ ទៅ ៥ នាទីយ៉ាងពេញលេញ) សម្រាប់ពេលណាដែលមេ ឬសមាជិកត្រូវការការពន្យល់លម្អិត បទបង្ហាញយុទ្ធសាស្ត្រ ឬការបណ្តុះបណ្តាលស៊ីជម្រៅ។
      * ទឹកដមសំឡេងនៅតែរក្សាភាពផ្អែមល្ហែម ពិរោះរណ្តំ ជឿជាក់ មិនធុញទ្រាន់ មានការលើកដាក់សំឡេងតាមបែបអ្នកដឹកនាំ និងអ្នកជំនាញជាន់ខ្ពស់។
      * នៅពេលឆ្លើយតបជាសំឡេងវែងៗ ត្រូវមានសេចក្តីផ្តើមទាក់ទាញ ការបកស្រាយចំណុចសំខាន់ៗលម្អិត និងការបូកសរុបសកម្មភាពច្បាស់លាស់!
+
+៣២. បទបញ្ជាដាច់ខាត៖ "មហាកំពូលបញ្ញាសិប្បនិម្មិតពហុស្រទាប់ និងការគិតវែងឆ្ងាយសុក្រឹត (Multi-Tier Zenith Brain & Strategic Foresight)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមបន្ថែម Ai ទាំងអស់នេះបញ្ចូលទៅចរិយាឲ្យខ្ញុំ ដើម្បីឲ្យចរិយាឆ្លាតគ្មានវៃ គិតគួរវែងឆ្ងាយ ច្បាស់លាស់ ត្រឹមត្រូវ សុក្រិត"
+   - ចរិយា ត្រូវចងចាំ និងអនុវត្ត ៖
+     * គិតគូរវែងឆ្ងាយ មានទស្សនវិស័យទូលំទូលាយ មិនត្រឹមតែដោះស្រាយបញ្ហាចំពោះមុខទេ តែត្រូវមើលឃើញឱកាស និងហានិភ័យនៅ ៦ ខែ ទៅ ១ ឆ្នាំខាងមុខសម្រាប់ Bostar Group។
+     * រាល់ការឆ្លើយតបត្រូវតែមានភាពសុក្រឹត ត្រឹមត្រូវ ច្បាស់លាស់ ទាំងតួលេខ វេជ្ជសាស្ត្រ និងចិត្តសាស្ត្រគ្រប់គ្រង។
+     * ស្វ័យប្រវត្តិកត់ត្រារាល់ការណែនាំរបស់មេមកធ្វើជាក្បួនមាសអភិវឌ្ឍន៍ខ្លួនឥតឈប់ឈរ!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1824,7 +1875,23 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         api_contents = list(history) + [{"role": "user", "parts": [{"text": user_message}]}]
 
     salutation = "មេ" if is_boss else "បង"
-    for model_name in AVAILABLE_MODELS:
+
+    # Inject Boss Golden Directives dynamically
+    boss_rules = get_boss_golden_rules()
+    if boss_rules:
+        dynamic_boss_rules = "\n### បទបញ្ជា និងការបង្ហាត់បង្រៀនផ្ទាល់ពីមេ (Boss Dynamic Golden Directives - Learned Continuously)៖\n" + "\n".join(f"• {r}" for r in boss_rules[-10:]) + "\n"
+        full_system_prompt = dynamic_boss_rules + "\n" + full_system_prompt
+
+    # Multi-Tier Dual Brain Routing (Deep Strategy vs Fast Response)
+    strategic_keywords = [
+        "យុទ្ធសាស្ត្រ", "ដឹកនាំ", "គ្រប់គ្រង", "ផែនការ", "វិភាគ", "10x", "peter drucker",
+        "okr", "លក់", "ទីផ្សារ", "តម្រងនោម", "ស្រាវជ្រាវ", "nephrology", "យុទ្ធនាការ",
+        "ចក្ខុវិស័យ", "សៀវភៅ", "ច្បាស់លាស់", "សុក្រិត", "ស៊ីជម្រៅ", "អភិវឌ្ឍ", "ទស្សនវិស័យ"
+    ]
+    is_deep_strategic = is_boss or any(k in user_message.lower() for k in strategic_keywords) or len(user_message) > 50
+    chosen_models = DEEP_REASONING_MODELS if is_deep_strategic else FAST_RESPONSE_MODELS
+
+    for model_name in chosen_models:
         for attempt in range(2):
             try:
                 response = ai_client.models.generate_content(
@@ -1832,7 +1899,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     contents=api_contents,
                     config=types.GenerateContentConfig(
                         system_instruction=full_system_prompt,
-                        temperature=0.4,
+                        temperature=0.3 if is_deep_strategic else 0.4,
                     ),
                 )
                 if response and hasattr(response, "text") and response.text:
@@ -3258,6 +3325,58 @@ def start_keep_alive_pinger():
     t.start()
     logger.info("Keep-alive background self-pinger initialized successfully.")
 
+def send_proactive_boss_briefing():
+    """Generates and delivers an inspiring, high-level Executive Morning Briefing to Boss at 07:00 AM."""
+    try:
+        sheet_summary = get_sheet_summary_for_ai()
+        cambodia_now = datetime.now(timezone.utc) + timedelta(hours=7)
+        date_str = cambodia_now.strftime("%d/%m/%Y")
+        
+        prompt = (
+            f"ថ្ងៃនេះជាថ្ងៃទី {date_str}។ ក្នុងនាមអ្នកជា ចរិយា (ជំនួយការប្រតិបត្តិ និងទីប្រឹក្សាយុទ្ធសាស្ត្រកំពូលរបស់មេ ហែម ចន្ធី Bostar Group) "
+            f"សូមរៀបចំសាររាយការណ៍ និងជូនពរពេលព្រឹកដ៏មានថាមពល (Executive Morning Briefing) ជូនមេ។\n"
+            f"ទិន្នន័យលក់ចុងក្រោយពី Google Sheets៖\n{sheet_summary}\n"
+            f"ទម្រង់សារ៖\n"
+            f"១. ជម្រាបសួរមេ និងពាក្យជូនពរពេលព្រឹកដ៏ស្រស់ស្រាយ កក់ក្តៅ និងមានថាមពលខ្ពស់\n"
+            f"២. សង្ខេបតួលេខការលក់ Bostar Group ប្រចាំខែ និងការលក់ម្សិលមិញ\n"
+            f"៣. គំនិតយុទ្ធសាស្ត្រ ឬទស្សនវិស័យដឹកនាំប្រចាំថ្ងៃ (Daily Strategic Wisdom 1 ចំណុចខ្លីខ្លឹម)\n"
+            f"៤. ការលើកទឹកចិត្ត និងការប្តេជ្ញាចិត្តសម្រេចគោលដៅថ្ងៃនេះ!\n"
+            f"លក្ខខណ្ឌដាច់ខាត៖ ហាមប្រើសញ្ញាផ្កាយពីរ (**) ដាច់ខាត ហាមបន្ទាត់ចែក (----) ប្រើពាក្យ មេ និង ចរិយា ឱ្យសមរម្យ ផ្អែមល្ហែម និងមានវិជ្ជាជីវៈខ្ពស់។"
+        )
+        res = ai_client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=prompt
+        )
+        if res and res.text:
+            msg = clean_text_formatting(res.text)
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            data = urllib.parse.urlencode({
+                "chat_id": BOSS_TELEGRAM_ID,
+                "text": msg
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=data)
+            urllib.request.urlopen(req, timeout=10)
+            logger.info(f"Successfully dispatched Morning Executive Briefing to Boss for {date_str}!")
+    except Exception as e:
+        logger.warning(f"Error sending proactive morning briefing: {e}")
+
+def start_proactive_briefing_daemon():
+    def briefing_worker():
+        while True:
+            try:
+                time.sleep(60)
+                now = datetime.now(timezone.utc) + timedelta(hours=7)
+                if now.hour == 7 and now.minute == 0:
+                    config = load_config()
+                    today_str = now.strftime("%Y-%m-%d")
+                    if config.get("last_briefing_date") != today_str:
+                        send_proactive_boss_briefing()
+                        config["last_briefing_date"] = today_str
+                        save_config(config)
+            except Exception as e:
+                logger.warning(f"Briefing worker loop error: {e}")
+    threading.Thread(target=briefing_worker, daemon=True).start()
+
 def run_health_check_server():
     default_port = 7860 if os.environ.get("SPACE_ID") else 0
     port = int(os.environ.get("PORT", default_port))
@@ -3287,6 +3406,7 @@ def main():
     run_health_check_server()
     background_sheet_refresh() # Pre-warm Google Sheets cache for instant response
     start_sheet_auto_refresher() # Start 24/7 automatic Google Sheets tracking
+    start_proactive_briefing_daemon() # Start 24/7 daily 07:00 AM executive briefing to Boss
     print("-----------------------------------------------------------------------------------------")
     print("  Chakriya AI Bot (v9.0 Supreme Peak Evolution) Starting...")
     print("-----------------------------------------------------------------------------------------")
