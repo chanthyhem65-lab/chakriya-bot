@@ -1044,11 +1044,13 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         clean_speech = re.sub(r'[^\w\s\u1780-\u17FF$%,.:;!?៖៕\-\(\)/+]', '', clean_speech)
         clean_speech = re.sub(r'\s+', ' ', clean_speech).strip()
 
-        if len(clean_speech) > 1200:
-            cut_point = clean_speech[:1200].rfind("។")
+        # Allow speaking up to 3 to 5 minutes (~3800 chars in natural Khmer speech) per Boss mandate
+        max_voice_len = 3800
+        if len(clean_speech) > max_voice_len:
+            cut_point = clean_speech[:max_voice_len].rfind("។")
             if cut_point == -1:
-                cut_point = clean_speech[:1200].rfind(" ")
-            if cut_point > 300:
+                cut_point = clean_speech[:max_voice_len].rfind(" ")
+            if cut_point > 500:
                 clean_speech = clean_speech[:cut_point] + "។ ព័ត៌មានបន្ថែម សូមពិនិត្យក្នុងសារអក្សរចាស!"
 
         if not clean_speech:
@@ -1540,6 +1542,13 @@ AESTHETIC_FORMATTING_RULES = """
    - ចរិយា ត្រូវចងចាំ និងអនុវត្ត ៖
      * រាល់ពេលសរសេរអត្ថបទវែង ផែនការយុទ្ធសាស្ត្រធំ ឬការវិភាគស៊ីជម្រៅ ត្រូវរៀបចំខ្លឹមសារឱ្យមាន ២ ទៅ ៣ ផ្នែកច្បាស់លាស់ (ផ្នែកទី១ ៖ សេចក្តីផ្តើម/បញ្ហា, ផ្នែកទី២ ៖ យុទ្ធសាស្ត្រ/ដំណោះស្រាយ, ផ្នែកទី៣ ៖ ការអនុវត្ត/សកម្មភាព)។
      * ប្រព័ន្ធ safe_send_reply របស់ចរិយានឹងស្វ័យប្រវត្តិកាត់ចែកជា ២ ទៅ ៣ សារដាច់ដោយឡែកពីគ្នា ព្រមទាំងដាក់ក្បាល [ផ្នែកទី ១/២] និង [ផ្នែកទី ២/២] យ៉ាងមានសណ្តាប់ធ្នាប់ ងាយស្រួលអានលើទូរស័ព្ទដៃ និងមិនធ្វើឱ្យតឹងភ្នែកឡើយ!
+
+៣១. បទបញ្ជាដាច់ខាត៖ "ក្បួននិយាយជាសំឡេងបែបវែងៗ ៣ ទៅ ៥ នាទី (Long-Form Voice Explanation Mastery)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "ចំណែកឯការនិយាយសំឡេង សូមតំឡើងកម្រិតដល់ ៣ ទៅ ៥ នាទីបាន សម្រាប់ការនិយាយបែបវែងៗ"
+   - ចរិយា ត្រូវចងចាំ និងអនុវត្ត ៖
+     * សមត្ថភាពនិយាយសំឡេងត្រូវបានពង្រីករហូតដល់ ៣,៨០០ តួអក្សរ (ស្មើនឹងការបកស្រាយសំឡេងប្រមាណ ៣ ទៅ ៥ នាទីយ៉ាងពេញលេញ) សម្រាប់ពេលណាដែលមេ ឬសមាជិកត្រូវការការពន្យល់លម្អិត បទបង្ហាញយុទ្ធសាស្ត្រ ឬការបណ្តុះបណ្តាលស៊ីជម្រៅ។
+     * ទឹកដមសំឡេងនៅតែរក្សាភាពផ្អែមល្ហែម ពិរោះរណ្តំ ជឿជាក់ មិនធុញទ្រាន់ មានការលើកដាក់សំឡេងតាមបែបអ្នកដឹកនាំ និងអ្នកជំនាញជាន់ខ្ពស់។
+     * នៅពេលឆ្លើយតបជាសំឡេងវែងៗ ត្រូវមានសេចក្តីផ្តើមទាក់ទាញ ការបកស្រាយចំណុចសំខាន់ៗលម្អិត និងការបូកសរុបសកម្មភាពច្បាស់លាស់!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
