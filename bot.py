@@ -60,8 +60,8 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
-DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+AVAILABLE_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
 FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"]
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
@@ -1102,6 +1102,60 @@ def get_boss_golden_rules() -> list:
     except Exception:
         return []
 
+def save_boss_recent_turn(user_msg: str, bot_reply: str):
+    try:
+        memories = load_all_memories()
+        ctx = memories.get("boss_recent_context", [])
+        ctx.append({"u": user_msg[:300], "b": bot_reply[:400]})
+        memories["boss_recent_context"] = ctx[-4:]
+        save_all_memories(memories)
+    except Exception:
+        pass
+
+def get_boss_recent_context_text() -> str:
+    try:
+        memories = load_all_memories()
+        ctx = memories.get("boss_recent_context", [])
+        if not ctx:
+            return ""
+        lines = [f"• មេសួរ៖ {c['u']} -> ចរិយាឆ្លើយ៖ {c['b']}" for c in ctx]
+        return "\n### ការចងចាំបរិបទសន្ទនាចុងក្រោយជាមួយមេ (Cross-Session Memory Recall)៖\n" + "\n".join(lines) + "\n"
+    except Exception:
+        return ""
+
+def fetch_live_web_intelligence(query: str) -> str:
+    """Fetches real-time live web facts or currency exchange rates (USD -> KHR/THB) when relevant."""
+    notes = []
+    q_low = query.lower()
+    if any(w in q_low for w in ["ដុល្លារ", "រៀល", "បាត", "អត្រា", "ប្តូរប្រាក់", "usd", "khr", "thb", "exchange", "rate", "លុយថៃ", "ប្តូរលុយ"]):
+        try:
+            req = urllib.request.Request("https://open.er-api.com/v6/latest/USD", headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+                rates = data.get("rates", {})
+                khr = rates.get("KHR")
+                thb = rates.get("THB")
+                if khr and thb:
+                    notes.append(f"អត្រាប្តូរប្រាក់ជាក់ស្តែងថ្ងៃនេះ៖ 1 USD = {khr:,.0f} KHR (រៀល) | 1 USD = {thb:,.2f} THB (បាតថៃ)")
+        except Exception as e:
+            logger.warning(f"Exchange rate fetch error: {e}")
+
+    if any(w in q_low for w in ["ស្វែងរក", "រកមើល", "ព័ត៌មាន", "search", "google", "web", "ពិភពលោក", "តើអ្វីជា", "ប្រវត្តិ"]):
+        try:
+            encoded_q = urllib.parse.quote(query[:120])
+            req = urllib.request.Request(f"https://api.duckduckgo.com/?q={encoded_q}&format=json&no_html=1", headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                ddg = json.loads(resp.read().decode())
+                abstract = ddg.get("AbstractText")
+                if abstract:
+                    notes.append(f"ព័ត៌មានស្រាវជ្រាវពីអ៊ីនធឺណិត៖ {abstract[:600]}")
+        except Exception as e:
+            logger.warning(f"DuckDuckGo fetch error: {e}")
+
+    if notes:
+        return "\n### ទិន្នន័យបណ្តាញអ៊ីនធឺណិតផ្ទាល់ (Live Web & Market Intelligence)៖\n" + "\n".join(f"• {n}" for n in notes) + "\n"
+    return ""
+
 def add_boss_golden_rule(rule: str):
     try:
         memories = load_all_memories()
@@ -1600,6 +1654,13 @@ AESTHETIC_FORMATTING_RULES = """
      * គិតគូរវែងឆ្ងាយ មានទស្សនវិស័យទូលំទូលាយ មិនត្រឹមតែដោះស្រាយបញ្ហាចំពោះមុខទេ តែត្រូវមើលឃើញឱកាស និងហានិភ័យនៅ ៦ ខែ ទៅ ១ ឆ្នាំខាងមុខសម្រាប់ Bostar Group។
      * រាល់ការឆ្លើយតបត្រូវតែមានភាពសុក្រឹត ត្រឹមត្រូវ ច្បាស់លាស់ ទាំងតួលេខ វេជ្ជសាស្ត្រ និងចិត្តសាស្ត្រគ្រប់គ្រង។
      * ស្វ័យប្រវត្តិកត់ត្រារាល់ការណែនាំរបស់មេមកធ្វើជាក្បួនមាសអភិវឌ្ឍន៍ខ្លួនឥតឈប់ឈរ!
+
+៣៣. បទបញ្ជាដាច់ខាត៖ "កំពូលបញ្ញាវិភាគស៊ីជម្រៅ ការគិតជាជំហានៗ និងការចងចាំឆ្លងសម័យកាល (Zenith Thinking Engine & Cross-Session IQ)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមបន្ថែមភាពឆ្លាតវៃឲ្យចរិយាកម្រិតខ្ពស់"
+   - ចរិយា ត្រូវចងចាំ និងអនុវត្ត ៖
+     * ប្រើប្រាស់ម៉ាស៊ីនគិតវិភាគស៊ីជម្រៅ (Internal Chain-of-Thought Thinking Engine) មុននឹងបញ្ចេញចម្លើយរាល់ពេលជួបសំណួរយុទ្ធសាស្ត្រ គណនាហិរញ្ញវត្ថុ ឬសំណួរវេជ្ជសាស្ត្រ។
+     * ផ្ទៀងផ្ទាត់តួលេខ ភាគរយ ផលចំណេញ និងការព្យាករណ៍ឱ្យបានសុក្រឹត្យ ១០០% គ្មានការស្មាន ឬបំផ្លើសឡើយ។
+     * ប្រើប្រាស់ទិន្នន័យទីផ្សារ និងអត្រាប្តូរប្រាក់ជាក់ស្តែង (USD/KHR/THB) សម្រាប់ប្រតិបត្តិការ Bostar ទាំងនៅកម្ពុជា និងថៃ។
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -1891,17 +1952,43 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     is_deep_strategic = is_boss or any(k in user_message.lower() for k in strategic_keywords) or len(user_message) > 50
     chosen_models = DEEP_REASONING_MODELS if is_deep_strategic else FAST_RESPONSE_MODELS
 
+    # Inject Cross-Session Memory for Boss if fresh session, and Live Web Intelligence
+    if is_boss and len(history) == 0:
+        cross_ctx = get_boss_recent_context_text()
+        if cross_ctx:
+            full_system_prompt = cross_ctx + "\n" + full_system_prompt
+
+    live_web_ctx = fetch_live_web_intelligence(user_message)
+    if live_web_ctx:
+        full_system_prompt = full_system_prompt + "\n" + live_web_ctx
+
     for model_name in chosen_models:
         for attempt in range(2):
             try:
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=api_contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=full_system_prompt,
-                        temperature=0.3 if is_deep_strategic else 0.4,
-                    ),
-                )
+                cfg_kwargs = {
+                    "system_instruction": full_system_prompt,
+                    "temperature": 0.3 if is_deep_strategic else 0.4,
+                }
+                if is_deep_strategic and any(x in model_name for x in ["3.6-flash", "3.8-flash", "3-flash-preview"]):
+                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=2048)
+
+                try:
+                    response = ai_client.models.generate_content(
+                        model=model_name,
+                        contents=api_contents,
+                        config=types.GenerateContentConfig(**cfg_kwargs),
+                    )
+                except Exception as think_err:
+                    if "thinking" in str(think_err).lower() and "thinking_config" in cfg_kwargs:
+                        cfg_kwargs.pop("thinking_config", None)
+                        response = ai_client.models.generate_content(
+                            model=model_name,
+                            contents=api_contents,
+                            config=types.GenerateContentConfig(**cfg_kwargs),
+                        )
+                    else:
+                        raise think_err
+
                 if response and hasattr(response, "text") and response.text:
                     clean_reply = clean_text_formatting(response.text)
                     clean_reply = enforce_salutation_safety(clean_reply, is_boss, user_info["salutation"])
@@ -1921,6 +2008,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     history.append({"role": "model", "parts": [{"text": clean_reply}]})
                     if len(history) > MAX_HISTORY * 2:
                         conversation_histories[chat_id] = history[-MAX_HISTORY * 2:]
+                    if is_boss:
+                        threading.Thread(target=save_boss_recent_turn, args=(history_label, clean_reply), daemon=True).start()
                     return clean_reply
             except Exception as e:
                 logger.warning(f"Error with model {model_name} (attempt {attempt + 1}): {e}")
@@ -3328,7 +3417,7 @@ def start_keep_alive_pinger():
 def send_proactive_boss_briefing():
     """Generates and delivers an inspiring, high-level Executive Morning Briefing to Boss at 07:00 AM."""
     try:
-        sheet_summary = get_sheet_summary_for_ai()
+        sheet_summary = fetch_live_sales_data()
         cambodia_now = datetime.now(timezone.utc) + timedelta(hours=7)
         date_str = cambodia_now.strftime("%d/%m/%Y")
         
