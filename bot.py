@@ -60,9 +60,10 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
-DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
-FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"]
+AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"]
+DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+_MODEL_COOLDOWN = {}  # Skips 429/503 models immediately for 10 mins to prevent 20s+ hang!
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
@@ -2020,9 +2021,10 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         "ក្រុម", "សមាជិក", "សុខណា", "ផាន់នី", "ស្រីភា", "សីហាក់", "ម៉ាស់យ៉ា", "សុភី", "សីហា", "ស្រីណុច", "វឌ្ឍនា",
         "cod", "vet", "ថៃ", "ដឹកជញ្ជូន", "លុយ", "កំប៉ុង"
     ]
-    # Always load live Google Sheets data so Chakriya always has it in memory for voice, text, or any query!
-    sales_data_context = fetch_live_sales_data()
-    if not is_boss:
+    msg_low = user_message.lower()
+    needs_sales_data = any(k in msg_low for k in sales_keywords) or bool(audio_bytes) or bool(photo_bytes) or bool(doc_bytes)
+    sales_data_context = fetch_live_sales_data() if needs_sales_data else "(ទិន្នន័យ Google Sheets ត្រូវបានតភ្ជាប់រួចរាល់ — សូមសួរអំពីការលក់ ឬតួលេខដើម្បីបង្ហាញលម្អិត)"
+    if not is_boss and needs_sales_data:
         sales_data_context = sanitize_sales_data_for_team(sales_data_context)
 
     now_ict = datetime.now(ICT)
@@ -2109,19 +2111,19 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
 {TEAM_KNOWLEDGE}
 
-{KIDNEY_HEALTH_KNOWLEDGE}
+{KIDNEY_HEALTH_KNOWLEDGE if any(k in msg_low for k in ["តម្រងនោម", "ក្រលៀន", "kidney", "នោម", "creatinine", "ឈឺចង្កេះ", "ហើម", "ផលិតផល", "ភ្ញៀវ", "ប្រឹក្សា", "អាការ", "តម", "ឈុត"]) or bool(audio_bytes or photo_bytes or doc_bytes) else ""}
 
-{YONG_LAING_JOINT_NERVE_KNOWLEDGE}
+{YONG_LAING_JOINT_NERVE_KNOWLEDGE if any(k in msg_low for k in ["យ៉ុងលាំង", "yong", "សន្លាក់", "កៀប", "កប់សរសៃ", "សរសៃ", "ស្ពឹក", "រមួលក្រពើ", "អាស៊ីត", "ឈឺចង្កេះ", "ជង្គង់", "ឈុត", "ភ្ញៀវ", "ប្រឹក្សា"]) or bool(audio_bytes) else ""}
 
-{COMBO_SYNERGY_STRATEGY}
+{COMBO_SYNERGY_STRATEGY if any(k in msg_low for k in ["ឈុត", "គូ", "combo", "យ៉ុងលាំង", "kidney", "cross", "ប្រឹក្សា", "លក់", "ភ្ញៀវ"]) else ""}
 
-{SUPREME_VIDEO_SCRIPT_MASTERY}
+{SUPREME_VIDEO_SCRIPT_MASTERY if any(k in msg_low for k in ["ស្គ្រីប", "script", "វីដេអូ", "video", "hook", "ថត", "បង្ហោះ", "tiktok", "reels", "ads", "មាតិកា"]) else ""}
 
-{VANN_SITHA_SCRIPTS_AND_CONTENT_KNOWLEDGE}
+{VANN_SITHA_SCRIPTS_AND_CONTENT_KNOWLEDGE if any(k in msg_low for k in ["ស្គ្រីប", "script", "វីដេអូ", "video", "hook", "ឆាត", "ជំទាស់", "objection", "បិទការលក់", "ភ្ញៀវ", "មាតិកា"]) else ""}
 
-{WISDOM_AND_STORIES_KNOWLEDGE}
+{WISDOM_AND_STORIES_KNOWLEDGE if any(k in msg_low for k in ["គតិ", "អប់រំ", "រឿង", "លើកទឹកចិត្ត", "ទស្សន", "ដឹកនាំ", "មេរៀន"]) else ""}
 
-{ADS_POLICY_AND_VIDEO_KNOWLEDGE}
+{ADS_POLICY_AND_VIDEO_KNOWLEDGE if any(k in msg_low for k in ["ads", "boost", "ប៊ូត", "facebook", "ផេក", "tiktok", "គោលការណ៍", "policy", "វីដេអូ"]) else ""}
 
 ### គំរូជំនាញជ្រោមជ្រែងការលក់សម្រាប់ក្រុមការងារ (Team Sales Mastery Support)៖
 • នៅពេលសមាជិកក្រុមការងារទាំង ៩ នាក់ (បង សុខណា, ផាន់នី, ស្រីភា, សីហាក់, ម៉ាស់យ៉ា, សុភី, សីហា, ស្រីណុច, វឌ្ឍនា) ឆាតមកពិគ្រោះអំពី៖
@@ -2290,7 +2292,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         "okr", "លក់", "ទីផ្សារ", "តម្រងនោម", "ស្រាវជ្រាវ", "nephrology", "យុទ្ធនាការ",
         "ចក្ខុវិស័យ", "សៀវភៅ", "ច្បាស់លាស់", "សុក្រិត", "ស៊ីជម្រៅ", "អភិវឌ្ឍ", "ទស្សនវិស័យ"
     ]
-    is_deep_strategic = is_boss or any(k in user_message.lower() for k in strategic_keywords) or len(user_message) > 50
+    # Route to Deep Reasoning ONLY when actually asking for deep strategy/planning/medical/analysis (keeps normal chat ultra-fast <2.5s!)
+    is_deep_strategic = any(k in user_message.lower() for k in strategic_keywords) or len(user_message) > 120
     chosen_models = DEEP_REASONING_MODELS if is_deep_strategic else FAST_RESPONSE_MODELS
 
     # Inject Cross-Session Memory for Boss if fresh session, and Live Web Intelligence
@@ -2304,6 +2307,9 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
         full_system_prompt = full_system_prompt + "\n" + live_web_ctx
 
     for model_name in chosen_models:
+        # Skip model immediately if in 429/503 cooldown (0ms delay!)
+        if time.time() < _MODEL_COOLDOWN.get(model_name, 0):
+            continue
         for attempt in range(2):
             try:
                 cfg_kwargs = {
@@ -2311,7 +2317,7 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     "temperature": 0.3 if is_deep_strategic else 0.4,
                 }
                 if is_deep_strategic and any(x in model_name for x in ["3.6-flash", "3.8-flash", "3-flash-preview"]):
-                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=2048)
+                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=512)
 
                 try:
                     response = ai_client.models.generate_content(
@@ -2353,9 +2359,14 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                         threading.Thread(target=save_boss_recent_turn, args=(history_label, clean_reply), daemon=True).start()
                     return clean_reply
             except Exception as e:
-                logger.warning(f"Error with model {model_name} (attempt {attempt + 1}): {e}")
+                err_str = str(e)
+                logger.warning(f"Error with model {model_name} (attempt {attempt + 1}): {err_str[:120]}")
+                # If 429 quota exhausted or 503 overloaded, put model on 10-minute cooldown and jump to next model immediately!
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
+                    _MODEL_COOLDOWN[model_name] = time.time() + 600
+                    break
                 if attempt == 0:
-                    time.sleep(1.0)
+                    time.sleep(0.5)
                 continue
 
     return f"ចាស{salutation}! ប្រព័ន្ធទិន្នន័យមានការរវល់បន្តិច សូម{salutation}សាកល្បងសួរម្តងទៀតណា៎! ចរិយានៅក្បែរចាំជួយជានិច្ចចាស 🥰🌸"
