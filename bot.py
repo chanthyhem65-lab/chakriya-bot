@@ -1204,9 +1204,34 @@ def _generate_voice_studio_sync(text: str) -> bytes | None:
         if not voices_data or not isinstance(voices_data, list):
             return None
 
+        def _is_male_voice(name: str) -> bool:
+            n = (name or "").lower()
+            male_words = ["ប្រុស", "បុរស", "male", "man", "boy", "piseth", "លោកគ្រូ", "ពូ", "តា"]
+            if any(w in n for w in male_words) and "female" not in n:
+                return True
+            if re.search(r'\bm\d+\b', n) or re.search(r'\bai\s*m\d+', n):
+                return True
+            return False
+
+        def _is_female_voice(name: str) -> bool:
+            n = (name or "").lower()
+            if _is_male_voice(n):
+                return False
+            female_words = ["ស្រី", "ចរិយា", "female", "girl", "woman", "ya1", "ya2", "srey", "mom"]
+            if any(w in n for w in female_words):
+                return True
+            if re.search(r'\bf\d+\b', n) or re.search(r'\bai\s*f\d+', n):
+                return True
+            return False
+
+        female_voices = [v for v in voices_data if _is_female_voice(v.get("name", ""))]
+        non_male_voices = [v for v in voices_data if not _is_male_voice(v.get("name", ""))]
+        candidate_voices = female_voices or non_male_voices or voices_data
+
         voice_id = preferred_voice
-        if not voice_id or not any(v.get("id") == voice_id for v in voices_data):
-            voice_id = voices_data[0].get("id")
+        if not voice_id or not any(v.get("id") == voice_id for v in candidate_voices):
+            import random
+            voice_id = random.choice(candidate_voices).get("id")
         if not voice_id:
             return None
 
@@ -1967,6 +1992,10 @@ AESTHETIC_FORMATTING_RULES = """
 ៣៧. បទបញ្ជាដាច់ខាត៖ "កំពូលស្គ្រីបទាក់ទាញចិត្តអ្នកមើលឱ្យចង់ទិញភ្លាមៗ (Supreme Instant-Buy Video Script Mastery)" ៖
    - បទបញ្ជាផ្ទាល់របស់មេ៖ "ចរិយា សូមទៅសិក្សា លំអិតស្គ្រីប កម្រិតកំពូល ធ្វើបែបណាទាក់ទាញចិត្តអ្នកមើលឲ្យចង់ទិញភ្លាមៗ បន្ទាបពីមើលរួច"
    - ចរិយា ត្រូវអនុវត្តរូបមន្ត Neuro-Script ៥ ដំណាក់កាល (3s Pattern Interrupt Hook -> Agitate & Hidden Enemy -> Mechanism & Social Proof -> Risk-Free Offer -> Urgency CTA) រួមជាមួយគន្លឹះ Visual/Voice Pacing និង Ads Policy ១០០% រាល់ពេលសរសេរស្គ្រីបវីដេអូ!
+
+៣៨. បទបញ្ជាដាច់ខាត៖ "ប្រើប្រាស់សំឡេងមនុស្សស្រីជានិច្ច (Strict Female Voice Persona)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "ខ្ញុំនឹងបញ្ចូលសំឡេងថ្មីៗចូលបន្ថែមទៀត ។ ចឹងចរិយា ប្រើតាមចិត្ត ។តែសូមប្រើសំឡេងមនុស្សស្រី"
+   - ចរិយា ត្រូវជ្រើសរើសប្រើតែសំឡេងមនុស្សស្រីប៉ុណ្ណោះ (ដូចជា Ai F1-F5, Ya1, សំឡេងស្រីថ្មីៗក្នុង Need One Audio ឬ km-KH-SreymomNeural លើ Cloud) និងហាមដាច់ខាតមិនត្រូវប្រើសំឡេងមនុស្សប្រុសឡើយ!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
