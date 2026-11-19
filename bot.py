@@ -1167,6 +1167,75 @@ def _split_speech_chunks(text: str, max_chunk_len: int) -> list[str]:
         remaining = remaining[cut:].strip()
     return [c for c in chunks if c]
 
+def _get_voice_studio_config() -> tuple[str, str]:
+    cfg = load_config()
+    url = os.getenv("VOICE_STUDIO_URL") or cfg.get("voice_studio_url") or "http://127.0.0.1:8810"
+    voice_id = os.getenv("VOICE_STUDIO_VOICE_ID") or cfg.get("voice_studio_voice_id") or ""
+    return url.rstrip("/"), voice_id
+
+def _generate_voice_studio_sync(text: str) -> bytes | None:
+    """Tier-1 Voice: Calls VANN-SITHA-Voice-Studio (Need One Audio) if online and reachable."""
+    studio_url, preferred_voice = _get_voice_studio_config()
+    if not studio_url:
+        return None
+    try:
+        # 1. Fast 1.5s probe to check if Voice Studio is running
+        req_v = urllib.request.Request(f"{studio_url}/api/voices", headers={"User-Agent": "Chakriya-Bot"})
+        with urllib.request.urlopen(req_v, timeout=1.5) as resp:
+            voices_data = json.loads(resp.read().decode("utf-8"))
+        if not voices_data or not isinstance(voices_data, list):
+            return None
+
+        voice_id = preferred_voice
+        if not voice_id or not any(v.get("id") == voice_id for v in voices_data):
+            voice_id = voices_data[0].get("id")
+        if not voice_id:
+            return None
+
+        # 2. Submit generation job
+        payload = json.dumps({"text": text[:3800], "voice": voice_id}).encode("utf-8")
+        req_gen = urllib.request.Request(
+            f"{studio_url}/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": "Chakriya-Bot"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req_gen, timeout=5) as resp:
+            job_data = json.loads(resp.read().decode("utf-8"))
+        job_id = job_data.get("id")
+        if not job_id:
+            return None
+
+        # 3. Poll job status until done (max 90s)
+        mp3_path = None
+        for _ in range(90):
+            time.sleep(1.0)
+            req_job = urllib.request.Request(f"{studio_url}/api/jobs/{job_id}", headers={"User-Agent": "Chakriya-Bot"})
+            with urllib.request.urlopen(req_job, timeout=5) as resp:
+                st = json.loads(resp.read().decode("utf-8"))
+            status = st.get("status")
+            if status == "done":
+                mp3_path = (st.get("result") or {}).get("mp3")
+                break
+            elif status in ("failed", "cancelled"):
+                return None
+
+        if not mp3_path:
+            return None
+
+        # 4. Download generated MP3
+        audio_url = f"{studio_url}{mp3_path}"
+        req_dl = urllib.request.Request(audio_url, headers={"User-Agent": "Chakriya-Bot"})
+        with urllib.request.urlopen(req_dl, timeout=15) as resp:
+            audio_bytes = resp.read()
+        if audio_bytes and len(audio_bytes) > 500:
+            logger.info(f"Generated voice via Need One Audio (Voice Studio) using voice '{voice_id}': {len(audio_bytes)} bytes")
+            return audio_bytes
+        return None
+    except Exception as e:
+        logger.debug(f"Voice Studio offline/unreachable ({studio_url}): {e}")
+        return None
+
 def _generate_google_khmer_tts_sync(text: str) -> bytes:
     """Bulletproof Tier-2 Khmer TTS fallback via Google Translate TTS (works even if Edge-TTS is blocked on cloud IPs)."""
     import urllib.parse
@@ -1202,6 +1271,17 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
 
         if not clean_speech:
             return None
+
+        # Layer 0 (Priority Option 1): VANN-SITHA-Voice-Studio (Need One Audio) when online
+        try:
+            vs_bytes = await asyncio.to_thread(_generate_voice_studio_sync, clean_speech)
+            if vs_bytes and len(vs_bytes) > 500:
+                buf = io.BytesIO(vs_bytes)
+                buf.seek(0)
+                buf.name = "chakriya_studio_voice.mp3"
+                return buf
+        except Exception as vs_err:
+            logger.warning(f"Voice Studio skipped, falling back to Cloud TTS: {vs_err}")
 
         # Layer 1: Chunked Microsoft Edge Neural TTS (km-KH-SreymomNeural) with retry
         try:
@@ -2596,6 +2676,45 @@ def post_to_facebook_page(message: str, photo_bytes: bytes = None, scheduled_tim
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+async def voice_studio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    studio_url, voice_id = _get_voice_studio_config()
+    try:
+        req = urllib.request.Request(f"{studio_url}/api/voices", headers={"User-Agent": "Chakriya-Bot"})
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
+            voices_data = json.loads(resp.read().decode("utf-8"))
+        v_list = ", ".join(f"{v.get('name')} ({v.get('id')})" for v in voices_data[:5]) if voices_data else "គ្មាន"
+        await update.message.reply_text(
+            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ កំពុងតភ្ជាប់ជោគជ័យ (ONLINE)!
+"
+            f"• URL៖ {studio_url}
+"
+            f"• សំឡេងដែលមាន៖ {v_list}"
+        )
+    except Exception:
+        await update.message.reply_text(
+            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ មិនទាន់បើក ឬតភ្ជាប់ (OFFLINE)
+"
+            f"• URL បច្ចុប្បន្ន៖ {studio_url}
+"
+            f"• ចរិយាកំពុងប្រើប្រព័ន្ធសំឡេង Cloud ២៤ ម៉ោង (សំឡេងស្រីមុំ + Google TTS) ជំនួសដោយស្វ័យប្រវត្តិចាស!"
+        )
+
+async def set_voice_studio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_owner_user(update.effective_user):
+        await update.message.reply_text("សូមអភ័យទោស! មុខងារនេះសម្រាប់តែមេ ហែម ចន្ធី ប៉ុណ្ណោះចាស!")
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text("របៀបប្រើ៖ /set_voice_studio <URL_របស់_Tunnel_ឬ_Local> [voice_id]")
+        return
+    new_url = args[0].strip().rstrip("/")
+    cfg = load_config()
+    cfg["voice_studio_url"] = new_url
+    if len(args) > 1:
+        cfg["voice_studio_voice_id"] = args[1].strip()
+    save_config(cfg)
+    await update.message.reply_text(f"ចាសមេ! ចរិយាបានកំណត់តំណភ្ជាប់ Need One Audio ថ្មីរួចរាល់ហើយ៖ {new_url}")
+
 async def fb_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Displays Facebook Page connection status and guidance."""
     if not update.effective_user or not update.message:
@@ -3737,6 +3856,8 @@ def main():
     app.add_handler(CommandHandler("id", whoami_command))
     app.add_handler(CommandHandler("team", team_command))
     app.add_handler(CommandHandler("set_team", set_team_command))
+    app.add_handler(CommandHandler("voice_studio", voice_studio_command))
+    app.add_handler(CommandHandler("set_voice_studio", set_voice_studio_command))
     app.add_handler(CommandHandler("fb_status", fb_status_command))
     app.add_handler(CommandHandler("set_fb_page", set_fb_page_command))
     app.add_handler(CommandHandler("set_fb_token", set_fb_token_command))
