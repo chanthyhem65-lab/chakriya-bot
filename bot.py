@@ -1231,8 +1231,8 @@ def _generate_voice_studio_sync(text: str) -> bytes | None:
 
         voice_id = preferred_voice
         if not voice_id or not any(v.get("id") == voice_id for v in candidate_voices):
-            import random
-            voice_id = random.choice(candidate_voices).get("id")
+            # Pick ONE consistent female voice (prefer Ya1 / Ai F1) so voice never jumps between speakers
+            voice_id = candidate_voices[0].get("id")
         if not voice_id:
             return None
 
@@ -1281,15 +1281,46 @@ def _generate_voice_studio_sync(text: str) -> bytes | None:
         return None
 
 def normalize_khmer_for_speech(text: str) -> str:
-    """Normalizes text so every Khmer word, number, currency, and pause is articulated clearly word-for-word."""
+    """Normalizes text so every Khmer word is spoken in pure, consistent, natural Khmer without jarring English jumps."""
     t = re.sub(r'https?://\S+', '', text)
     t = re.sub(r'[\u0E00-\u0E7F]+', '', t)
     t = t.replace("**", "").replace("*", "").replace("#", "").replace("`", "")
-    # Speak currency & percentages clearly in Khmer instead of skipping symbols
+
+    # Strip English-only parenthetical translations like "(Pinched Nerve)" so voice stays pure Khmer
+    t = re.sub(r'\([A-Za-z0-9\s\-&+/.,:%!\?]+\)', ' ', t)
+
+    # Speak currency & percentages clearly in Khmer
     t = re.sub(r'\$(\d+(?:[.,]\d+)?)', r'\1 ដុល្លារ', t)
     t = re.sub(r'(\d+(?:[.,]\d+)?)\$', r'\1 ដុល្លារ', t)
     t = re.sub(r'(\d+(?:[.,]\d+)?)%', r'\1 ភាគរយ', t)
-    t = t.replace("10X", "១០ ដង").replace("10x", "១០ ដង")
+
+    # Transliterate common business/product English terms into smooth Khmer phonetics
+    en_to_km = [
+        (r'\bKidney\s*Pro\b', 'ឃីដនី ប្រូ'),
+        (r'\bYong\s*Laing\b|\bYong\s*Liang\b', 'យ៉ុងលាំង'),
+        (r'\bBostar\s*Group\b', 'បូស្តារ គ្រុប'),
+        (r'\bBostar\b', 'បូស្តារ'),
+        (r'\bGoogle\s*Sheets?\b', 'ហ្គូហ្គល ស៊ីត'),
+        (r'\bTelegram\b', 'តេឡេក្រាម'),
+        (r'\bFacebook\b', 'ហ្វេសប៊ុក'),
+        (r'\bTikTok\b', 'តិកតុក'),
+        (r'\bYouTube\b', 'យូធូប'),
+        (r'\bOrders?\b', 'ការកម្ម៉ង់'),
+        (r'\bCreatinine\b', 'ក្រេអាទីនីន'),
+        (r'\bUric\s*Acid\b', 'អាស៊ីតយូរិក'),
+        (r'\beGFR\b', 'អ៊ីជីអេហ្វអារ'),
+        (r'\b10X\b', '១០ ដង'),
+        (r'\bCOD\b', 'ស៊ីអូឌី'),
+        (r'\bVIP\b', 'វីអាយភី'),
+        (r'\bAI\b', 'អេអាយ'),
+        (r'\bUSD\b', 'ដុល្លារ'),
+        (r'\bTHB\b', 'បាត'),
+        (r'\bKHR\b', 'រៀល'),
+        (r'\bOK\b', 'អូខេ'),
+    ]
+    for pat, rep in en_to_km:
+        t = re.sub(pat, rep, t, flags=re.IGNORECASE)
+
     # Convert bullets and newlines into natural breathing pauses
     t = re.sub(r'[•▪▫►▸➤➜➔]', '។ ', t)
     t = re.sub(r'\n+', '។ ', t)
@@ -1403,20 +1434,7 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         except Exception as vs_err:
             logger.warning(f"Voice Studio skipped, falling back to Cloud TTS: {vs_err}")
 
-        # Layer 1: Gemini 3.8 Studio Expressive Female TTS -> Converted to MP3 for Native Telegram Voice Bubble
-        try:
-            g_studio_wav = await asyncio.to_thread(_generate_gemini_tts_sync, clean_speech)
-            if g_studio_wav and len(g_studio_wav) > 1000:
-                mp3_bytes = await asyncio.to_thread(_wav_to_mp3_bytes, g_studio_wav)
-                if mp3_bytes and len(mp3_bytes) > 500:
-                    buf = io.BytesIO(mp3_bytes)
-                    buf.seek(0)
-                    buf.name = "chakriya_voice.mp3"
-                    return buf
-        except Exception as gt_err:
-            logger.warning(f"Gemini TTS failed, trying Edge Neural TTS: {gt_err}")
-
-        # Layer 2: Chunked Microsoft Edge Neural TTS (km-KH-SreymomNeural) with retry
+        # Layer 1: Dedicated Single-Speaker Native Khmer Female Neural Voice (Microsoft Sreymom Neural)
         try:
             edge_chunks = _split_speech_chunks(clean_speech, 650)
             edge_buf = bytearray()
