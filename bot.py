@@ -1280,6 +1280,63 @@ def _generate_voice_studio_sync(text: str) -> bytes | None:
         logger.debug(f"Voice Studio offline/unreachable ({studio_url}): {e}")
         return None
 
+def normalize_khmer_for_speech(text: str) -> str:
+    """Normalizes text so every Khmer word, number, currency, and pause is articulated clearly word-for-word."""
+    t = re.sub(r'https?://\S+', '', text)
+    t = re.sub(r'[\u0E00-\u0E7F]+', '', t)
+    t = t.replace("**", "").replace("*", "").replace("#", "").replace("`", "")
+    # Speak currency & percentages clearly in Khmer instead of skipping symbols
+    t = re.sub(r'\$(\d+(?:[.,]\d+)?)', r'\1 ដុល្លារ', t)
+    t = re.sub(r'(\d+(?:[.,]\d+)?)\$', r'\1 ដុល្លារ', t)
+    t = re.sub(r'(\d+(?:[.,]\d+)?)%', r'\1 ភាគរយ', t)
+    t = t.replace("10X", "១០ ដង").replace("10x", "១០ ដង")
+    # Convert bullets and newlines into natural breathing pauses
+    t = re.sub(r'[•▪▫►▸➤➜➔]', '។ ', t)
+    t = re.sub(r'\n+', '។ ', t)
+    t = t.replace("(", " ").replace(")", " ").replace("->", " ទៅ ").replace(":", " ")
+    t = re.sub(r'[^\w\s\u1780-\u17FF,.!?៖៕\-]', ' ', t)
+    t = re.sub(r'(។\s*)+', '។ ', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+def _generate_gemini_tts_sync(text: str) -> bytes | None:
+    """Tier-1 Expressive Studio Khmer Female Voice via Gemini 3.8 Flash TTS (Aoede female voice)."""
+    try:
+        # Limit to ~1600 chars for fast, crisp studio WAV under Telegram limits
+        speech_txt = text[:1600]
+        prompt = (
+            "Read the following Khmer text aloud word-for-word with crystal-clear articulation, "
+            "accurate pronunciation of every single syllable, and a warm, sweet, intelligent, melodious female voice. "
+            "Do not skip, summarize, or alter any word:\n\n" + speech_txt
+        )
+        for tts_model in ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-2.5-flash-preview-tts"):
+            try:
+                res = ai_client.models.generate_content(
+                    model=tts_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Aoede")
+                            )
+                        ),
+                    ),
+                )
+                parts = res.candidates[0].content.parts if (res and res.candidates) else []
+                for p in parts:
+                    inline = getattr(p, "inline_data", None)
+                    if inline and inline.data and len(inline.data) > 1000:
+                        logger.info(f"Generated expressive voice via {tts_model}: {len(inline.data)} bytes")
+                        return bytes(inline.data)
+            except Exception as me:
+                logger.warning(f"Gemini TTS {tts_model} fallback: {str(me)[:100]}")
+                continue
+        return None
+    except Exception as e:
+        logger.warning(f"Gemini TTS error: {e}")
+        return None
+
 def _generate_google_khmer_tts_sync(text: str) -> bytes:
     """Bulletproof Tier-2 Khmer TTS fallback via Google Translate TTS (works even if Edge-TTS is blocked on cloud IPs)."""
     import urllib.parse
@@ -1298,11 +1355,7 @@ def _generate_google_khmer_tts_sync(text: str) -> bytes:
 async def generate_voice_reply(text: str) -> io.BytesIO | None:
     """Generates ultra-high quality Khmer speech: Layer 1 Chunked Microsoft Sreymom Neural -> Layer 2 Google Khmer TTS Fallback."""
     try:
-        clean_speech = re.sub(r'https?://\S+', '', text)
-        clean_speech = re.sub(r'[\u0E00-\u0E7F]+', '', clean_speech)
-        clean_speech = clean_speech.replace("**", "").replace("*", "")
-        clean_speech = re.sub(r'[^\w\s\u1780-\u17FF$%,.:;!?៖៕\-\(\)/+]', '', clean_speech)
-        clean_speech = re.sub(r'\s+', ' ', clean_speech).strip()
+        clean_speech = normalize_khmer_for_speech(text)
 
         # Allow speaking up to 3 to 5 minutes (~3800 chars in natural Khmer speech) per Boss mandate
         max_voice_len = 3800
@@ -1327,7 +1380,18 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         except Exception as vs_err:
             logger.warning(f"Voice Studio skipped, falling back to Cloud TTS: {vs_err}")
 
-        # Layer 1: Chunked Microsoft Edge Neural TTS (km-KH-SreymomNeural) with retry
+        # Layer 1: Gemini 3.8 Studio Expressive Female TTS (Crystal-Clear Word-for-Word)
+        try:
+            g_studio_bytes = await asyncio.to_thread(_generate_gemini_tts_sync, clean_speech)
+            if g_studio_bytes and len(g_studio_bytes) > 1000:
+                buf = io.BytesIO(g_studio_bytes)
+                buf.seek(0)
+                buf.name = "chakriya_voice.wav"
+                return buf
+        except Exception as gt_err:
+            logger.warning(f"Gemini TTS failed, trying Edge Neural TTS: {gt_err}")
+
+        # Layer 2: Chunked Microsoft Edge Neural TTS (km-KH-SreymomNeural) with retry
         try:
             edge_chunks = _split_speech_chunks(clean_speech, 650)
             edge_buf = bytearray()
@@ -1338,8 +1402,8 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
                         communicate = edge_tts.Communicate(
                             ch,
                             voice="km-KH-SreymomNeural",
-                            rate="+2%",
-                            pitch="+2Hz"
+                            rate="+0%",
+                            pitch="+1Hz"
                         )
                         part = bytearray()
                         async for item in communicate.stream():
@@ -1997,6 +2061,10 @@ AESTHETIC_FORMATTING_RULES = """
 ៣៨. បទបញ្ជាដាច់ខាត៖ "ប្រើប្រាស់សំឡេងមនុស្សស្រីជានិច្ច (Strict Female Voice Persona)" ៖
    - បទបញ្ជាផ្ទាល់របស់មេ៖ "ខ្ញុំនឹងបញ្ចូលសំឡេងថ្មីៗចូលបន្ថែមទៀត ។ ចឹងចរិយា ប្រើតាមចិត្ត ។តែសូមប្រើសំឡេងមនុស្សស្រី"
    - ចរិយា ត្រូវជ្រើសរើសប្រើតែសំឡេងមនុស្សស្រីប៉ុណ្ណោះ (ដូចជា Ai F1-F5, Ya1, សំឡេងស្រីថ្មីៗក្នុង Need One Audio ឬ km-KH-SreymomNeural លើ Cloud) និងហាមដាច់ខាតមិនត្រូវប្រើសំឡេងមនុស្សប្រុសឡើយ!
+
+៣៩. បទបញ្ជាដាច់ខាត៖ "និយាយជាសំឡេងច្បាស់ៗ ត្រូវតាមអក្សរមួយតួៗ ពិរោះរណ្តំ និងឆ្លាតវៃ (Crystal-Clear, Word-for-Word & Melodious Female Voice Mastery)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមឲ្យនិយាយជាសំលេងច្បាស់ៗ ត្រូវជាមួយអក្សរមួយតូៗ ដោយភាពឆ្លាតវៃ និង ពិរោះរណ្តំ គួរឲ្យចង់ស្តាប់"
+   - ចរិយា ត្រូវប្រើប្រាស់ប្រព័ន្ធសំរួលអក្សរខ្មែរសម្រាប់ការនិយាយ (normalize_khmer_for_speech) និងម៉ាស៊ីនសំឡេងកម្រិតខ្ពស់ (Need One Audio / Gemini 3.8 Studio Voice Aoede / Sreymom Neural) ដើម្បីអានច្បាស់គ្រប់ពាក្យ ត្រូវតាមអក្សរមួយតួៗ មានទឹកដមផ្អែមល្ហែម ពិរោះរណ្តំ គួរឱ្យចង់ស្តាប់!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -3678,12 +3746,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pass
                 voice_buf = await generate_voice_reply(formatted_reply)
                 if voice_buf and voice_buf.getbuffer().nbytes > 200:
-                    try:
-                        await update.message.reply_voice(voice=voice_buf, write_timeout=60, read_timeout=60)
-                    except Exception as r_ve:
-                        logger.info(f"reply_voice fallback to reply_audio: {r_ve}")
-                        voice_buf.seek(0)
-                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសម្លេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
+                    is_wav = getattr(voice_buf, "name", "").lower().endswith(".wav")
+                    if is_wav:
+                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសំឡេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
+                    else:
+                        try:
+                            await update.message.reply_voice(voice=voice_buf, write_timeout=60, read_timeout=60)
+                        except Exception as r_ve:
+                            logger.info(f"reply_voice fallback to reply_audio: {r_ve}")
+                            voice_buf.seek(0)
+                            await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសំឡេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
                 else:
                     logger.warning(f"Voice buffer empty for chat {chat_id}")
             except Exception as voice_err:
