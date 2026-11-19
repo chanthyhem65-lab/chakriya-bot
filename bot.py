@@ -2684,18 +2684,14 @@ async def voice_studio_command(update: Update, context: ContextTypes.DEFAULT_TYP
             voices_data = json.loads(resp.read().decode("utf-8"))
         v_list = ", ".join(f"{v.get('name')} ({v.get('id')})" for v in voices_data[:5]) if voices_data else "គ្មាន"
         await update.message.reply_text(
-            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ កំពុងតភ្ជាប់ជោគជ័យ (ONLINE)!
-"
-            f"• URL៖ {studio_url}
-"
+            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ កំពុងតភ្ជាប់ជោគជ័យ (ONLINE)!\n"
+            f"• URL៖ {studio_url}\n"
             f"• សំឡេងដែលមាន៖ {v_list}"
         )
     except Exception:
         await update.message.reply_text(
-            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ មិនទាន់បើក ឬតភ្ជាប់ (OFFLINE)
-"
-            f"• URL បច្ចុប្បន្ន៖ {studio_url}
-"
+            f"🎙️ ស្ថានភាព Need One Audio (Voice Studio)៖ មិនទាន់បើក ឬតភ្ជាប់ (OFFLINE)\n"
+            f"• URL បច្ចុប្បន្ន៖ {studio_url}\n"
             f"• ចរិយាកំពុងប្រើប្រព័ន្ធសំឡេង Cloud ២៤ ម៉ោង (សំឡេងស្រីមុំ + Google TTS) ជំនួសដោយស្វ័យប្រវត្តិចាស!"
         )
 
