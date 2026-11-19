@@ -1145,8 +1145,45 @@ def enforce_salutation_safety(text: str, is_boss: bool, salutation: str) -> str:
 
     return res
 
+def _split_speech_chunks(text: str, max_chunk_len: int) -> list[str]:
+    chunks = []
+    remaining = text.strip()
+    while remaining:
+        if len(remaining) <= max_chunk_len:
+            chunks.append(remaining)
+            break
+        cut = remaining[:max_chunk_len].rfind("។")
+        if cut == -1:
+            cut = remaining[:max_chunk_len].rfind("!")
+        if cut == -1:
+            cut = remaining[:max_chunk_len].rfind("?")
+        if cut == -1:
+            cut = remaining[:max_chunk_len].rfind(" ")
+        if cut <= int(max_chunk_len * 0.25):
+            cut = max_chunk_len
+        else:
+            cut += 1
+        chunks.append(remaining[:cut].strip())
+        remaining = remaining[cut:].strip()
+    return [c for c in chunks if c]
+
+def _generate_google_khmer_tts_sync(text: str) -> bytes:
+    """Bulletproof Tier-2 Khmer TTS fallback via Google Translate TTS (works even if Edge-TTS is blocked on cloud IPs)."""
+    import urllib.parse
+    chunks = _split_speech_chunks(text, 175)
+    out = bytearray()
+    for ch in chunks:
+        q = urllib.parse.quote(ch)
+        url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=km&client=tw-ob&q={q}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read()
+            if data:
+                out.extend(data)
+    return bytes(out)
+
 async def generate_voice_reply(text: str) -> io.BytesIO | None:
-    """Generates ultra-high quality, natural sweet Khmer neural speech using tuned Microsoft Sreymom voice."""
+    """Generates ultra-high quality Khmer speech: Layer 1 Chunked Microsoft Sreymom Neural -> Layer 2 Google Khmer TTS Fallback."""
     try:
         clean_speech = re.sub(r'https?://\S+', '', text)
         clean_speech = re.sub(r'[\u0E00-\u0E7F]+', '', clean_speech)
@@ -1166,19 +1203,53 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         if not clean_speech:
             return None
 
-        communicate = edge_tts.Communicate(
-            clean_speech,
-            voice="km-KH-SreymomNeural",
-            rate="+2%",
-            pitch="+2Hz"
-        )
-        buf = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                buf.write(chunk["data"])
-        buf.seek(0)
-        buf.name = "chakriya_voice.mp3"
-        return buf
+        # Layer 1: Chunked Microsoft Edge Neural TTS (km-KH-SreymomNeural) with retry
+        try:
+            edge_chunks = _split_speech_chunks(clean_speech, 650)
+            edge_buf = bytearray()
+            for idx, ch in enumerate(edge_chunks):
+                chunk_ok = False
+                for attempt in range(2):
+                    try:
+                        communicate = edge_tts.Communicate(
+                            ch,
+                            voice="km-KH-SreymomNeural",
+                            rate="+2%",
+                            pitch="+2Hz"
+                        )
+                        part = bytearray()
+                        async for item in communicate.stream():
+                            if item["type"] == "audio":
+                                part.extend(item["data"])
+                        if len(part) > 200:
+                            edge_buf.extend(part)
+                            chunk_ok = True
+                            break
+                    except Exception as ce:
+                        logger.warning(f"Edge TTS chunk {idx+1} attempt {attempt+1} error: {ce}")
+                        await asyncio.sleep(0.5)
+                if not chunk_ok:
+                    raise RuntimeError(f"Edge TTS failed on chunk {idx+1}")
+            if len(edge_buf) > 500:
+                buf = io.BytesIO(bytes(edge_buf))
+                buf.seek(0)
+                buf.name = "chakriya_voice.mp3"
+                return buf
+        except Exception as edge_err:
+            logger.warning(f"Edge TTS primary failed, switching to Google Khmer TTS fallback: {edge_err}")
+
+        # Layer 2: Bulletproof Google Khmer TTS Fallback
+        try:
+            g_bytes = await asyncio.to_thread(_generate_google_khmer_tts_sync, clean_speech[:1800])
+            if g_bytes and len(g_bytes) > 500:
+                buf = io.BytesIO(g_bytes)
+                buf.seek(0)
+                buf.name = "chakriya_voice.mp3"
+                return buf
+        except Exception as g_err:
+            logger.warning(f"Google Khmer TTS fallback error: {g_err}")
+
+        return None
     except Exception as e:
         logger.warning(f"Error in enhanced TTS: {e}")
         return None
@@ -3428,14 +3499,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if wants_voice:
             try:
+                try:
+                    await update.message.chat.send_action("record_voice")
+                except Exception:
+                    pass
                 voice_buf = await generate_voice_reply(formatted_reply)
-                if voice_buf:
+                if voice_buf and voice_buf.getbuffer().nbytes > 200:
                     try:
-                        await update.message.reply_voice(voice=voice_buf)
+                        await update.message.reply_voice(voice=voice_buf, write_timeout=60, read_timeout=60)
                     except Exception as r_ve:
                         logger.info(f"reply_voice fallback to reply_audio: {r_ve}")
                         voice_buf.seek(0)
-                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសម្លេងពី ចរិយា", performer="ចរិយា AI")
+                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសម្លេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
+                else:
+                    logger.warning(f"Voice buffer empty for chat {chat_id}")
             except Exception as voice_err:
                 logger.warning(f"Could not send voice reply to {chat_id}: {voice_err}")
 
