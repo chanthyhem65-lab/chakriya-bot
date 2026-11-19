@@ -60,10 +60,10 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set!")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"]
-DEEP_REASONING_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
-FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
-_MODEL_COOLDOWN = {}  # Skips 429/503 models immediately for 10 mins to prevent 20s+ hang!
+AVAILABLE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest"]
+DEEP_REASONING_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-flash-lite-latest"]
+FAST_RESPONSE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest"]
+_MODEL_COOLDOWN = {}
 
 CONFIG_FILE = BASE_DIR / "bot_config.json"
 MEMORY_FILE = BASE_DIR / "user_memories.json"
@@ -1622,8 +1622,9 @@ MAX_HISTORY = 10
 def check_and_extract_memory(user_id: str, text: str):
     is_boss_user = (str(user_id) == str(HARDCODED_OWNER_ID))
     
-    # 1. Autonomous Continuous Self-Evolution from Boss Directives & Teachings
-    if is_boss_user and len(text.strip()) > 4:
+    # 1. Autonomous Continuous Self-Evolution from Boss Directives & Teachings (only when teaching/directing to save API quota)
+    boss_directive_triggers = ["បទបញ្ជា", "ត្រូវរៀន", "សូមទៅរៀន", "សូមសិក្សា", "ទៅសិក្សា", "ពីថ្ងៃនេះទៅ", "កុំភ្លេចរៀន", "ត្រូវបែងចែក", "ចាំទុក", "កត់ត្រា", "ត្រូវធ្វើ", "ហាម"]
+    if is_boss_user and len(text.strip()) > 8 and any(t in text.lower() for t in boss_directive_triggers):
         directive_prompt = (
             "Analyze this message from the Company Leader/Boss to his AI Executive Chief of Staff (Chakriya).\n"
             f"Message: \"{text}\"\n"
@@ -2277,9 +2278,9 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
 
 {COMBO_SYNERGY_STRATEGY if any(k in msg_low for k in ["ឈុត", "គូ", "combo", "យ៉ុងលាំង", "kidney", "cross", "ប្រឹក្សា", "លក់", "ភ្ញៀវ"]) else ""}
 
-{CAMBODIAN_FB_VIRAL_SCRIPT_MASTERY if any(k in msg_low for k in ["ស្គ្រីប", "script", "វីដេអូ", "video", "hook", "ថត", "បង្ហោះ", "facebook", "ផេក", "tiktok", "reels", "ads", "មាតិកា"]) else ""}
+{CAMBODIAN_FB_VIRAL_SCRIPT_MASTERY if any(k in msg_low for k in ["ស្គ្រីប", "script", "ខេបសិន", "caption", "ផុស", "post", "វីដេអូ", "video", "hook", "ថត", "បង្ហោះ", "facebook", "ផេក", "tiktok", "reels", "ads", "មាតិកា"]) else ""}
 
-{SUPREME_VIDEO_SCRIPT_MASTERY if any(k in msg_low for k in ["ស្គ្រីប", "script", "វីដេអូ", "video", "hook", "ថត", "បង្ហោះ", "tiktok", "reels", "ads", "មាតិកា"]) else ""}
+{SUPREME_VIDEO_SCRIPT_MASTERY if any(k in msg_low for k in ["ស្គ្រីប", "script", "ខេបសិន", "caption", "ផុស", "post", "វីដេអូ", "video", "hook", "ថត", "បង្ហោះ", "tiktok", "reels", "ads", "មាតិកា"]) else ""}
 
 {VANN_SITHA_SCRIPTS_AND_CONTENT_KNOWLEDGE if any(k in msg_low for k in ["ស្គ្រីប", "script", "វីដេអូ", "video", "hook", "ឆាត", "ជំទាស់", "objection", "បិទការលក់", "ភ្ញៀវ", "មាតិកា"]) else ""}
 
@@ -2468,8 +2469,12 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
     if live_web_ctx:
         full_system_prompt = full_system_prompt + "\n" + live_web_ctx
 
+    # Safety net: if all models are in cooldown, reset cooldowns so we never skip everything!
+    now_t = time.time()
+    if all(now_t < _MODEL_COOLDOWN.get(m, 0) for m in chosen_models):
+        _MODEL_COOLDOWN.clear()
+
     for model_name in chosen_models:
-        # Skip model immediately if in 429/503 cooldown (0ms delay!)
         if time.time() < _MODEL_COOLDOWN.get(model_name, 0):
             continue
         for attempt in range(2):
@@ -2523,9 +2528,10 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
             except Exception as e:
                 err_str = str(e)
                 logger.warning(f"Error with model {model_name} (attempt {attempt + 1}): {err_str[:120]}")
-                # If 429 quota exhausted or 503 overloaded, put model on 10-minute cooldown and jump to next model immediately!
+                # If 429 or 503, put model on short cooldown (120s for PerDay limit, 20s for transient RPM) and jump immediately to next model!
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
-                    _MODEL_COOLDOWN[model_name] = time.time() + 600
+                    cd_sec = 180 if "PerDay" in err_str else 20
+                    _MODEL_COOLDOWN[model_name] = time.time() + cd_sec
                     break
                 if attempt == 0:
                     time.sleep(0.5)
