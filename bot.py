@@ -1491,7 +1491,7 @@ conversation_histories = {}
 MAX_HISTORY = 10
 
 def check_and_extract_memory(user_id: str, text: str):
-    is_boss_user = (str(user_id) == str(BOSS_TELEGRAM_ID))
+    is_boss_user = (str(user_id) == str(HARDCODED_OWNER_ID))
     
     # 1. Autonomous Continuous Self-Evolution from Boss Directives & Teachings
     if is_boss_user and len(text.strip()) > 4:
@@ -3833,7 +3833,7 @@ def send_proactive_boss_briefing():
             msg = clean_text_formatting(res.text)
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
             data = urllib.parse.urlencode({
-                "chat_id": BOSS_TELEGRAM_ID,
+                "chat_id": HARDCODED_OWNER_ID,
                 "text": msg
             }).encode("utf-8")
             req = urllib.request.Request(url, data=data)
