@@ -1167,10 +1167,28 @@ def _split_speech_chunks(text: str, max_chunk_len: int) -> list[str]:
         remaining = remaining[cut:].strip()
     return [c for c in chunks if c]
 
+_tunnel_url_cache = {"url": "", "ts": 0.0}
+
 def _get_voice_studio_config() -> tuple[str, str]:
     cfg = load_config()
-    url = os.getenv("VOICE_STUDIO_URL") or cfg.get("voice_studio_url") or "http://127.0.0.1:8810"
     voice_id = os.getenv("VOICE_STUDIO_VOICE_ID") or cfg.get("voice_studio_voice_id") or ""
+    manual_url = os.getenv("VOICE_STUDIO_URL") or cfg.get("voice_studio_url")
+    if manual_url:
+        return manual_url.rstrip("/"), voice_id
+
+    now_ts = time.time()
+    if now_ts - _tunnel_url_cache["ts"] > 45:
+        try:
+            raw_url = f"https://raw.githubusercontent.com/chanthyhem65-lab/chakriya-bot/tunnel-state/voice_studio_url.txt?t={int(now_ts)}"
+            req = urllib.request.Request(raw_url, headers={"User-Agent": "Chakriya-Bot", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                val = resp.read().decode("utf-8").strip()
+            _tunnel_url_cache["url"] = val if val.startswith("http") else ""
+        except Exception:
+            pass
+        _tunnel_url_cache["ts"] = now_ts
+
+    url = _tunnel_url_cache["url"] or "http://127.0.0.1:8810"
     return url.rstrip("/"), voice_id
 
 def _generate_voice_studio_sync(text: str) -> bytes | None:
