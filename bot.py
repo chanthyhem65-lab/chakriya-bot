@@ -1299,6 +1299,29 @@ def normalize_khmer_for_speech(text: str) -> str:
     t = re.sub(r'\s+', ' ', t).strip()
     return t
 
+def _wav_to_mp3_bytes(wav_bytes: bytes) -> bytes | None:
+    """Converts WAV audio bytes to clean MP3 bytes so Telegram always renders a native Voice Note bubble."""
+    try:
+        import wave, lameenc
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+            channels = wf.getnchannels()
+            sampwidth = wf.getsampwidth()
+            framerate = wf.getframerate()
+            nframes = wf.getnframes()
+            pcm_data = wf.readframes(nframes)
+        if sampwidth != 2 or not pcm_data:
+            return None
+        encoder = lameenc.Encoder()
+        encoder.set_bit_rate(128)
+        encoder.set_in_sample_rate(framerate)
+        encoder.set_channels(channels)
+        encoder.set_quality(2)
+        mp3_data = encoder.encode(pcm_data) + encoder.flush()
+        return bytes(mp3_data)
+    except Exception as e:
+        logger.warning(f"WAV to MP3 conversion error: {e}")
+        return None
+
 def _generate_gemini_tts_sync(text: str) -> bytes | None:
     """Tier-1 Expressive Studio Khmer Female Voice via Gemini 3.8 Flash TTS (Aoede female voice)."""
     try:
@@ -1380,14 +1403,16 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         except Exception as vs_err:
             logger.warning(f"Voice Studio skipped, falling back to Cloud TTS: {vs_err}")
 
-        # Layer 1: Gemini 3.8 Studio Expressive Female TTS (Crystal-Clear Word-for-Word)
+        # Layer 1: Gemini 3.8 Studio Expressive Female TTS -> Converted to MP3 for Native Telegram Voice Bubble
         try:
-            g_studio_bytes = await asyncio.to_thread(_generate_gemini_tts_sync, clean_speech)
-            if g_studio_bytes and len(g_studio_bytes) > 1000:
-                buf = io.BytesIO(g_studio_bytes)
-                buf.seek(0)
-                buf.name = "chakriya_voice.wav"
-                return buf
+            g_studio_wav = await asyncio.to_thread(_generate_gemini_tts_sync, clean_speech)
+            if g_studio_wav and len(g_studio_wav) > 1000:
+                mp3_bytes = await asyncio.to_thread(_wav_to_mp3_bytes, g_studio_wav)
+                if mp3_bytes and len(mp3_bytes) > 500:
+                    buf = io.BytesIO(mp3_bytes)
+                    buf.seek(0)
+                    buf.name = "chakriya_voice.mp3"
+                    return buf
         except Exception as gt_err:
             logger.warning(f"Gemini TTS failed, trying Edge Neural TTS: {gt_err}")
 
@@ -3746,16 +3771,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pass
                 voice_buf = await generate_voice_reply(formatted_reply)
                 if voice_buf and voice_buf.getbuffer().nbytes > 200:
-                    is_wav = getattr(voice_buf, "name", "").lower().endswith(".wav")
-                    if is_wav:
-                        await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសំឡេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
-                    else:
-                        try:
-                            await update.message.reply_voice(voice=voice_buf, write_timeout=60, read_timeout=60)
-                        except Exception as r_ve:
-                            logger.info(f"reply_voice fallback to reply_audio: {r_ve}")
-                            voice_buf.seek(0)
-                            await update.message.reply_audio(audio=voice_buf, title="ចម្លើយសំឡេងពី ចរិយា", performer="ចរិយា AI", write_timeout=60, read_timeout=60)
+                    await update.message.reply_voice(voice=voice_buf, write_timeout=60, read_timeout=60)
                 else:
                     logger.warning(f"Voice buffer empty for chat {chat_id}")
             except Exception as voice_err:
