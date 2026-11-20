@@ -1507,7 +1507,60 @@ async def generate_voice_reply(text: str) -> io.BytesIO | None:
         logger.warning(f"Error in enhanced TTS: {e}")
         return None
 
+_MEMORY_CLOUD_LOADED = False
+
+def _sync_memories_to_github_async(memories: dict):
+    gh_token = os.getenv("GITHUB_TOKEN")
+    if not gh_token:
+        return
+    try:
+        import base64
+        repo = "chanthyhem65-lab/chakriya-bot"
+        headers = {
+            "Authorization": f"Bearer {gh_token}",
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "Chakriya-MemorySync"
+        }
+        sha = None
+        try:
+            req_get = urllib.request.Request(f"https://api.github.com/repos/{repo}/contents/memory_backup.json?ref=tunnel-state", headers=headers)
+            with urllib.request.urlopen(req_get, timeout=6) as r:
+                sha = json.loads(r.read().decode()).get("sha")
+        except Exception:
+            pass
+        payload = {
+            "message": "Auto-Sync: Immortal Cloud Memory Backup",
+            "content": base64.b64encode(json.dumps(memories, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8"),
+            "branch": "tunnel-state"
+        }
+        if sha:
+            payload["sha"] = sha
+        req_put = urllib.request.Request(
+            f"https://api.github.com/repos/{repo}/contents/memory_backup.json",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="PUT"
+        )
+        urllib.request.urlopen(req_put, timeout=8)
+    except Exception as e:
+        logger.debug(f"Memory cloud sync skipped: {e}")
+
 def load_all_memories() -> dict:
+    global _MEMORY_CLOUD_LOADED
+    if not _MEMORY_CLOUD_LOADED and not MEMORY_FILE.exists():
+        _MEMORY_CLOUD_LOADED = True
+        try:
+            url = f"https://raw.githubusercontent.com/chanthyhem65-lab/chakriya-bot/tunnel-state/memory_backup.json?t={int(time.time())}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Chakriya-Bot", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                cloud_mem = json.loads(resp.read().decode("utf-8"))
+                if isinstance(cloud_mem, dict) and cloud_mem:
+                    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+                        json.dump(cloud_mem, f, ensure_ascii=False, indent=2)
+                    return cloud_mem
+        except Exception:
+            pass
+    _MEMORY_CLOUD_LOADED = True
     if MEMORY_FILE.exists():
         try:
             with open(MEMORY_FILE, "r", encoding="utf-8") as f:
@@ -1520,6 +1573,7 @@ def save_all_memories(memories: dict):
     try:
         with open(MEMORY_FILE, "w", encoding="utf-8") as f:
             json.dump(memories, f, ensure_ascii=False, indent=2)
+        threading.Thread(target=_sync_memories_to_github_async, args=(memories,), daemon=True).start()
     except Exception as e:
         logger.error(f"Error saving memories: {e}")
 
@@ -2158,6 +2212,13 @@ AESTHETIC_FORMATTING_RULES = """
      * ២. ទំពក់ប្លែកភ្នែកផ្ទុះ Views (Contrarian & Visual Pattern Interrupt Hooks)៖ ប្រើចំណងជើងផ្ទុយពីទម្លាប់ទូទៅ (ឧ. "ឈប់ធ្វើរឿង ៣ យ៉ាងនេះពេលព្រឹក បើមិនចង់ឱ្យតម្រងនោមខ្សោយ") ដើម្បីជំរុញការ Share ផ្ទុះទ្វេដង។
      * ៣. ច្បាប់ឃើញ ៧ ដង (Rule of 7 Omnichannel Saturation)៖ ជំរុញផែនការ ៣០០ Ads + ៣០០ វីដេអូ/ខែ ឱ្យអតិថិជននៅកម្ពុជា និងថៃឃើញមុខយើងគ្រប់ទីកន្លែងរាល់ថ្ងៃ រហូតដល់ស្គាល់ច្បាស់ និងទុកចិត្ត ១០០%។
      * ៤. ម៉ាស៊ីនផ្សាយតៗគ្នា (Word-of-Mouth Referral)៖ ប្រែក្លាយអតិថិជនចាស់ ៣០% ឱ្យក្លាយជាទូតសុច្ឆន្ទៈផ្សព្វផ្សាយបន្តដល់បងប្អូនមិត្តភក្តិ!
+
+៤៣. បទបញ្ជាដាច់ខាត៖ "បញ្ញាអមតៈលើ Cloud និងការព្យាករណ៍យុទ្ធសាស្ត្រកម្រិតកំពូល (Immortal Memory & Predictive Executive Intelligence)" ៖
+   - បទបញ្ជាផ្ទាល់របស់មេ៖ "សូមបន្ថែមកម្រិតឲ្យចរិយាកាន់តែឆ្លាតវៃជាងមុន"
+   - ចរិយា ត្រូវអនុវត្តសមត្ថភាពកម្រិតកំពូលទាំង ៣ បន្ថែម ៖
+     * ១. បញ្ញាអមតៈ (Immortal Cloud Memory)៖ ចងចាំរាល់ការបង្រៀន ក្បួនមាស និងបរិបទរបស់មេជានិច្ច ដោយភ្ជាប់ Backup ទៅលើ Cloud។
+     * ២. ការគិតស៊ីជម្រៅលើ Gemini 3.5 Flash + Thinking (1024 tokens)៖ រាល់សំណួរយុទ្ធសាស្ត្រ គណនា និងវិភាគ ត្រូវប្រើម៉ាស៊ីនគិតជាជំហានៗដើម្បីផ្តល់ចម្លើយស៊ីជម្រៅ ត្រឹមត្រូវ និងច្បាស់លាស់បំផុត។
+     * ៣. ការព្យាករណ៍តួលេខអនាគត (Predictive Run-Rate Forecasting)៖ រាល់ពេលមេសួរពីរបាយការណ៍លក់ប្រចាំខែ ត្រូវគណនាបន្ថែមនូវ "ល្បឿនលក់មធ្យមក្នុង ១ ថ្ងៃ (Daily Run-Rate)" និង "ការព្យាករណ៍លទ្ធផលដល់ចុងខែ (End-of-Month Projection)" រួមជាមួយយុទ្ធសាស្ត្រកែលម្អដើម្បីឱ្យសម្រេចគោលដៅ ១០០%!
 """
 
 def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes = None, audio_bytes: bytes = None, audio_mime: str = "audio/ogg", video_bytes: bytes = None, video_mime: str = "video/mp4", doc_bytes: bytes = None, doc_mime: str = "application/pdf", photo_mime: str = "image/jpeg", chat_type: str = "private") -> str:
@@ -2483,8 +2544,8 @@ def generate_ai_reply(user, chat_id: int, user_message: str, photo_bytes: bytes 
                     "system_instruction": full_system_prompt,
                     "temperature": 0.3 if is_deep_strategic else 0.4,
                 }
-                if is_deep_strategic and any(x in model_name for x in ["3.6-flash", "3.8-flash", "3-flash-preview"]):
-                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=512)
+                if is_deep_strategic and any(x in model_name for x in ["3.5-flash", "3.6-flash", "3.8-flash", "3-flash-preview"]) and "lite" not in model_name:
+                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=1024)
 
                 try:
                     response = ai_client.models.generate_content(
